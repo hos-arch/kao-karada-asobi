@@ -622,18 +622,47 @@ function glowAt(rs, col, a){
   });
 }
 function drawFace(){
-  // 案A：平らな色だけ・線は細く・髪は一つのかたまり・目は丸い点・口は線だけ（影・光沢・ほほの赤みなし）
+  // 案A（改良版）：平らな色だけ。線は細く、輪郭はあごへ向かってすぼまる。
+  // 髪は二色（うしろは少し暗く、前髪は明るい）。目は丸い点。影・光沢・ほほの赤みなし。
   const { cx, cy, fw, fh } = F, skin = SKIN[S.skin], hair = HAIR[S.hair], ink = '#4a3a30';
+  const hairBack = shade(hair, 0.9), browC = shade(hair, 0.66);
   const lw = Math.max(1.5, U * 0.0035);
-  // 影（平らな色の、うすい下がり）
-  ctx.beginPath(); ctx.ellipse(cx + U * 0.005, cy + U * 0.01, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(90,64,40,.12)'; ctx.fill();
-  // 髪（うしろ）
-  ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.05, fw * 0.545, fh * 0.55, 0, 0, Math.PI * 2); ctx.fillStyle = hair; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
-  // 耳
-  [-1, 1].forEach(s => { ctx.beginPath(); ctx.ellipse(cx + s * fw * 0.5, cy + fh * 0.03, fw * 0.075, fh * 0.095, 0, 0, Math.PI * 2); ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke(); });
-  // 顔（平らな色）
-  ctx.beginPath(); ctx.ellipse(cx, cy, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.fillStyle = skin; ctx.fill();
-  // 光（さわった部分・ヒント）
+  const X = v => cx + v * fw, Y = v => cy + v * fh;
+  // うしろの髪（ボブ）
+  const hairBackPath = () => {
+    ctx.beginPath(); ctx.moveTo(X(0), Y(-0.56));
+    ctx.bezierCurveTo(X(0.46), Y(-0.6), X(0.6), Y(-0.3), X(0.58), Y(0.02));
+    ctx.bezierCurveTo(X(0.56), Y(0.24), X(0.52), Y(0.36), X(0.36), Y(0.38));
+    ctx.quadraticCurveTo(X(0), Y(0.42), X(-0.36), Y(0.38));
+    ctx.bezierCurveTo(X(-0.52), Y(0.36), X(-0.56), Y(0.24), X(-0.58), Y(0.02));
+    ctx.bezierCurveTo(X(-0.6), Y(-0.3), X(-0.46), Y(-0.6), X(0), Y(-0.56));
+    ctx.closePath();
+  };
+  // 顔（あごがすこしすぼまる形）
+  const facePath = () => {
+    ctx.beginPath(); ctx.moveTo(X(0), Y(-0.5));
+    ctx.bezierCurveTo(X(0.3), Y(-0.5), X(0.5), Y(-0.3), X(0.5), Y(-0.02));
+    ctx.bezierCurveTo(X(0.5), Y(0.24), X(0.36), Y(0.44), X(0), Y(0.5));
+    ctx.bezierCurveTo(X(-0.36), Y(0.44), X(-0.5), Y(0.24), X(-0.5), Y(-0.02));
+    ctx.bezierCurveTo(X(-0.5), Y(-0.3), X(-0.3), Y(-0.5), X(0), Y(-0.5));
+    ctx.closePath();
+  };
+  // 前髪の下のふち（左右対称。まゆより上で、目はあけておく）
+  const bangsEdge = () => {
+    ctx.quadraticCurveTo(X(0.36), Y(-0.2), X(0.12), Y(-0.21));
+    ctx.quadraticCurveTo(X(0), Y(-0.17), X(-0.12), Y(-0.21));
+    ctx.quadraticCurveTo(X(-0.36), Y(-0.2), X(-0.7), Y(-0.05));
+  };
+  // 1 うしろの髪
+  hairBackPath(); ctx.fillStyle = hairBack; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+  // 2 耳（髪の外に少し出る）
+  [-1, 1].forEach(s => {
+    ctx.beginPath(); ctx.ellipse(X(s * 0.5), Y(0.05), fw * 0.085, fh * 0.12, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+  });
+  // 3 顔
+  facePath(); ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+  // 4 光（さわった部分・ヒント）
   const a = asst();
   flashes.forEach(f => { const u = f.t / (f.ok ? 1.5 : 0.7); glowAt(F[f.id].vis, f.ok ? '#f2c14e' : '#ffffff', (f.ok ? 0.85 : 0.6) * Math.pow(1 - u, 1.4)); });
   if (phase === 'ask' && S.hint === 'on'){
@@ -641,31 +670,30 @@ function drawFace(){
     if (hintT > 0) al = Math.max(al, 0.4 + 0.25 * Math.sin(T * 2.2));
     if (al > 0) glowAt(F[target].vis, '#f2c14e', al);
   }
-  // 前髪（一つのかたまり。髪全体の形で切り抜き、顔のふちが透けないようにする）
-  ctx.save(); ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.05, fw * 0.545 - lw / 2, fh * 0.55 - lw / 2, 0, 0, Math.PI * 2); ctx.clip();
-  ctx.beginPath(); ctx.moveTo(cx - fw, cy - fh); ctx.lineTo(cx + fw, cy - fh); ctx.lineTo(cx + fw, cy - fh * 0.22);
-  ctx.quadraticCurveTo(cx + fw * 0.3, cy - fh * 0.26, cx, cy - fh * 0.24);
-  ctx.quadraticCurveTo(cx - fw * 0.3, cy - fh * 0.26, cx - fw, cy - fh * 0.2); ctx.closePath();
-  ctx.fillStyle = hair; ctx.fill(); ctx.restore();
-  // 顔の輪郭の線は、前髪より下だけ（髪の上に線が透けないように）
-  ctx.save(); ctx.beginPath(); ctx.rect(0, cy - fh * 0.2, W, H); ctx.clip();
-  ctx.beginPath(); ctx.ellipse(cx, cy, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke(); ctx.restore();
-  // まゆ（案Aの飾り。いまは触れても反応しない）
+  // 5 前髪（うしろの髪の形で切り抜く。顔の輪郭が髪の上に透けない）
+  ctx.save(); hairBackPath(); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(X(-0.8), Y(-0.8)); ctx.lineTo(X(0.8), Y(-0.8)); ctx.lineTo(X(0.8), Y(-0.05)); ctx.lineTo(X(0.7), Y(-0.05));
+  bangsEdge(); ctx.lineTo(X(-0.8), Y(-0.05)); ctx.closePath();
+  ctx.fillStyle = hair; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(X(0.7), Y(-0.05)); bangsEdge();
+  ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+  ctx.restore();
+  // 6 まゆ（案Aの飾り。いまは触れても反応しない）
   F.eye.vis.forEach(r => {
-    const by = cy - fh * 0.15, bw = fw * 0.065;
-    ctx.beginPath(); ctx.moveTo(r.x - bw, by + fh * 0.012); ctx.quadraticCurveTo(r.x, by - fh * 0.03, r.x + bw, by + fh * 0.012);
-    ctx.strokeStyle = shade(hair, 0.8); ctx.lineWidth = lw * 1.5; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(r.x - fw * 0.07, cy - fh * 0.14);
+    ctx.quadraticCurveTo(r.x, cy - fh * 0.2, r.x + fw * 0.07, cy - fh * 0.14);
+    ctx.strokeStyle = browC; ctx.lineWidth = lw * 2; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
   });
-  // め（丸い点と、小さな白いつや）
+  // 7 め（丸い点と、小さな白いつや）
   F.eye.vis.forEach(r => {
-    ctx.beginPath(); ctx.ellipse(r.x, r.y, r.ry * 0.92, r.ry * 0.92, 0, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
-    ctx.beginPath(); ctx.arc(r.x - r.ry * 0.28, r.y - r.ry * 0.3, r.ry * 0.26, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r.x, r.y, r.ry * 0.95, r.ry * 0.95, 0, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
+    ctx.beginPath(); ctx.arc(r.x - r.ry * 0.28, r.y - r.ry * 0.3, r.ry * 0.27, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
   });
-  // はな（小さな線）
+  // 8 はな（小さな線）
   { const r = F.nose.vis[0];
     ctx.beginPath(); ctx.moveTo(r.x - r.rx * 0.5, r.y); ctx.quadraticCurveTo(r.x, r.y + r.ry * 0.9, r.x + r.rx * 0.5, r.y);
     ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt'; }
-  // くち（やさしい、とじた口の線）
+  // 9 くち（やさしい、とじた口の線）
   { const r = F.mouth.vis[0];
     ctx.beginPath(); ctx.moveTo(r.x - r.rx, r.y - r.ry * 0.3); ctx.quadraticCurveTo(r.x, r.y + r.ry * 1.6, r.x + r.rx, r.y - r.ry * 0.3);
     ctx.strokeStyle = ink; ctx.lineWidth = lw * 1.2; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt'; }
