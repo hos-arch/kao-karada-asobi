@@ -173,6 +173,14 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
         <p class="note">身体は、あたま・おなか・うで・あし、の4つです。うで・あしは、左右どちらの場所でも正解です。</p>
       </div>
       <div class="row">
+        <h3>絵の雰囲気</h3>
+        <div class="opts">
+          <button class="opt" data-set="style" data-v="soft">やわらかい</button>
+          <button class="opt" data-set="style" data-v="block">ブロック風</button>
+        </div>
+        <p class="note">ブロック風は、四角い形で、部分の境目がはっきりします。どちらも、このアプリのための、オリジナルの絵です。</p>
+      </div>
+      <div class="row">
         <h3>段階</h3>
         <div class="opts">
           <button class="opt" data-set="stage" data-v="A">指さし</button>
@@ -359,7 +367,7 @@ window.addEventListener('resize', resize);
 resize();
 
 // ---- 設定（保存しない）----
-const S = { fig: 'face', vocab: 'core', stage: 'A', parts: 2, hint: 'on', assist: 'mid', firstOnly: true, look: 'mid', cel: 'soft', vol: 30, sound: true, voice: '2', rate: 'slow', skin: 0, hair: 0 };
+const S = { fig: 'face', vocab: 'core', stage: 'A', parts: 2, hint: 'on', assist: 'mid', firstOnly: true, look: 'mid', cel: 'soft', vol: 30, sound: true, voice: '2', rate: 'slow', skin: 0, hair: 0, style: 'soft' };
 // 見た目の強さ：edge＝ふちの線、glow＝入れ口の光、stars＝星、bits＝紙くず、light＝明かり
 const LOOK = {
   soft:   { edge: 0.14, lw: 1,   glow: 0.18, stars: 2, bits: 4,  light: 0.45 },
@@ -617,10 +625,48 @@ function rr(x, y, w, h, r){   // 角の丸い四角の道
   ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
   ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
+// ブロック風（四角い形・平らな色）。このアプリのための、オリジナルの絵
+const BLOCK_COL = { shirt: '#f1c768', pants: '#8d7fb0', shoe: '#5f6f6a' };   // 既存のキャラクターと似ない、オリジナルの配色
+function glyphBlock(id, x, y, RX, RY, lw, skin, hair, ink){
+  const box = (bx, by, w, h, col, r) => { rr(bx, by, w, h, r === undefined ? Math.min(w, h) * 0.1 : r); ctx.fillStyle = col; ctx.fill(); ctx.stroke(); };
+  ctx.lineJoin = 'miter';
+  if (id === 'eye'){
+    const e = RY * 0.95; box(x - e, y - e, e * 2, e * 2, '#ffffff', e * 0.12);
+    box(x - e * 0.55, y - e * 0.6, e * 1.1, e * 1.2, ink, e * 0.08);
+  } else if (id === 'nose'){
+    box(x - RX * 0.4, y - RY * 0.3, RX * 0.8, RY * 1.1, shade(skin, 0.86), RX * 0.1);
+  } else if (id === 'mouth'){
+    box(x - RX, y - RY * 0.45, RX * 2, RY * 1.1, '#b8574f', RY * 0.15);
+  } else if (id === 'brow'){
+    box(x - RX, y - RY * 0.2, RX * 2, RY * 1.1, shade(hair, 0.66), RY * 0.15);
+  } else if (id === 'ear'){
+    box(x - RX, y - RY, RX * 2, RY * 2, skin, RX * 0.15);
+  } else if (id === 'head'){
+    const R = RX * 1.04;
+    box(x - R, y - R, R * 2, R * 2, skin, R * 0.1);
+    ctx.save(); rr(x - R, y - R, R * 2, R * 2, R * 0.1); ctx.clip();
+    ctx.fillStyle = hair; ctx.fillRect(x - R, y - R, R * 2, R * 0.62);
+    ctx.fillRect(x - R, y - R, R * 0.28, R * 1.1); ctx.fillRect(x + R * 0.72, y - R, R * 0.28, R * 1.1);
+    ctx.restore(); rr(x - R, y - R, R * 2, R * 2, R * 0.1); ctx.stroke();
+    [-1, 1].forEach(sd => { ctx.fillStyle = '#ffffff'; ctx.fillRect(x + sd * R * 0.42 - R * 0.14, y - R * 0.04, R * 0.28, R * 0.24); ctx.fillStyle = ink; ctx.fillRect(x + sd * R * 0.42 - R * 0.07, y - R * 0.02, R * 0.14, R * 0.2); });
+    ctx.fillStyle = '#b8574f'; ctx.fillRect(x - R * 0.24, y + R * 0.5, R * 0.48, R * 0.14);
+  } else if (id === 'torso'){
+    box(x - RX, y - RY, RX * 2, RY * 2, BLOCK_COL.shirt, RX * 0.1);
+    box(x - RX * 0.32, y - RY, RX * 0.64, RY * 0.16, skin, 0);
+  } else if (id === 'arm'){
+    box(x - RX, y - RY, RX * 2, RY * 2, skin, RX * 0.2);
+    box(x - RX, y - RY, RX * 2, RY * 1.1, BLOCK_COL.shirt, RX * 0.2);
+  } else if (id === 'leg'){
+    box(x - RX * 0.85, y + RY * 0.45, RX * 1.7, RY * 0.4, skin, 0);
+    box(x - RX, y - RY, RX * 2, RY * 1.5, BLOCK_COL.pants, RX * 0.12);
+    box(x - RX * 1.1, y + RY * 0.74, RX * 2.2, RY * 0.26, BLOCK_COL.shoe, RX * 0.12);
+  }
+}
 function glyph(id, x, y, rx, ry, s){
   const RX = rx * s, RY = ry * s, ink = '#4a3a30', skin = SKIN[S.skin], hair = HAIR[S.hair];
   const lw = Math.max(1.2, U * 0.0035 * Math.max(0.7, s));
   ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = ink; ctx.lineWidth = lw;
+  if (S.style === 'block'){ glyphBlock(id, x, y, RX, RY, lw, skin, hair, ink); ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; return; }
   if (id === 'eye'){
     ctx.beginPath(); ctx.arc(x, y, RY * 0.95, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
     ctx.beginPath(); ctx.arc(x - RY * 0.28, y - RY * 0.3, RY * 0.27, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
@@ -737,7 +783,26 @@ function glowAt(rs, col, a){
     ctx.globalAlpha = clamp(a, 0, 1); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(r.x, r.y, R, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
   });
 }
+function drawFaceBlock(){
+  const { cx, cy, fw, fh } = F, skin = SKIN[S.skin], hair = HAIR[S.hair], ink = '#4a3a30';
+  const lw = Math.max(1.5, U * 0.0035), X = v => cx + v * fw, Y = v => cy + v * fh;
+  const R = (a, b, c, d, col, r) => { rr(X(a), Y(b), (c - a) * fw, (d - b) * fh, r * fw); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.lineJoin = 'miter'; ctx.stroke(); };
+  R(-0.56, -0.56, 0.56, 0.4, shade(hair, 0.9), 0.03);                 // うしろの髪
+  R(-0.15, 0.4, 0.15, 0.6, skin, 0.01);                                 // 首
+  F.ear.vis.forEach((r, k) => { if (S.stage === 'B' && vocab().includes('ear') && !targetFilled('ear', k)) return; glyph('ear', r.x, r.y, r.rx, r.ry, 1); });
+  R(-0.5, -0.5, 0.5, 0.5, skin, 0.03);                                  // 顔
+  drawGlows();
+  ctx.save(); rr(X(-0.56), Y(-0.56), 1.12 * fw, 0.96 * fh, 0.03 * fw); ctx.clip();   // 前髪（かみのけ）
+  ctx.fillStyle = hair; ctx.fillRect(X(-0.6), Y(-0.6), 1.2 * fw, 0.38 * fh);
+  ctx.fillRect(X(-0.6), Y(-0.3), 0.14 * fw, 0.55 * fh); ctx.fillRect(X(0.46), Y(-0.3), 0.14 * fw, 0.55 * fh);
+  ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(-0.6), Y(-0.22)); ctx.lineTo(X(0.6), Y(-0.22)); ctx.stroke();
+  ctx.restore();
+  F.brow.vis.forEach(r => { if (S.stage === 'B' && vocab().includes('brow')) return; glyph('brow', r.x, r.y, r.rx, r.ry, 1); });
+  if (S.stage !== 'B'){ F.eye.vis.forEach(r => glyph('eye', r.x, r.y, r.rx, r.ry, 1)); glyph('nose', F.nose.vis[0].x, F.nose.vis[0].y, F.nose.vis[0].rx, F.nose.vis[0].ry, 1); glyph('mouth', F.mouth.vis[0].x, F.mouth.vis[0].y, F.mouth.vis[0].rx, F.mouth.vis[0].ry, 1); }
+  drawRings();
+}
 function drawFace(){
+  if (S.style === 'block'){ drawFaceBlock(); return; }
   // 案A（改良版）：平らな色だけ。線は細く、輪郭はあごへ向かってすぼまる。
   // 髪は二色（うしろは少し暗く、前髪は明るい）。目は丸い点。影・光沢・ほほの赤みなし。
   const { cx, cy, fw, fh } = F, skin = SKIN[S.skin], hair = HAIR[S.hair], ink = '#4a3a30';
@@ -831,7 +896,7 @@ function drawBodyFull(alpha){
   F.leg.vis.forEach(r => glyph('leg', r.x, r.y, r.rx, r.ry, 1));
   const n = F.torso.vis[0];
   ctx.fillStyle = SKIN[S.skin]; ctx.strokeStyle = '#4a3a30'; ctx.lineWidth = Math.max(1.5, U * 0.0035);
-  rr(n.x - n.rx * 0.22, n.y - n.ry * 1.3, n.rx * 0.44, n.ry * 0.5, n.rx * 0.15); ctx.fill(); ctx.stroke();
+  rr(n.x - n.rx * 0.22, n.y - n.ry * 1.3, n.rx * 0.44, n.ry * 0.5, S.style === 'block' ? n.rx * 0.03 : n.rx * 0.15); ctx.fill(); ctx.stroke();
   glyph('torso', n.x, n.y, n.rx, n.ry, 1);
   F.arm.vis.forEach(r => glyph('arm', r.x, r.y, r.rx, r.ry, 1));
   F.head.vis.forEach(r => glyph('head', r.x, r.y, r.rx, r.ry, 1));
@@ -993,18 +1058,20 @@ function buildShapesN(){
     { x0: Math.min(...pts.map(q => q.x)) - th, x1: Math.max(...pts.map(q => q.x)) + th, y0: Math.min(...pts.map(q => q.y)) - th, y1: Math.max(...pts.map(q => q.y)) + th },
     sp0(th), th * 2);
   if (S.fig === 'body'){
-    F.head.vis.forEach(r => ell('head', 'あたま', r.x, r.y, r.rx * 1.04, r.rx * 1.04));
-    F.torso.vis.forEach(r => rrs('torso', 'おなか', r.x, r.y, r.rx, r.ry, r.rx * 0.55));
-    F.arm.vis.forEach(r => rrs('arm', 'うで', r.x, r.y, r.rx, r.ry, r.rx));
-    F.leg.vis.forEach(r => rrs('leg', 'あし', r.x, r.y, r.rx, r.ry, r.rx * 0.45));
+    const bk = S.style === 'block';
+    F.head.vis.forEach(r => bk ? rrs('head', 'あたま', r.x, r.y, r.rx * 1.04, r.rx * 1.04, r.rx * 0.1) : ell('head', 'あたま', r.x, r.y, r.rx * 1.04, r.rx * 1.04));
+    F.torso.vis.forEach(r => rrs('torso', 'おなか', r.x, r.y, r.rx, r.ry, r.rx * (bk ? 0.1 : 0.55)));
+    F.arm.vis.forEach(r => rrs('arm', 'うで', r.x, r.y, r.rx, r.ry, r.rx * (bk ? 0.2 : 1)));
+    F.leg.vis.forEach(r => rrs('leg', 'あし', r.x, r.y, r.rx, r.ry, r.rx * (bk ? 0.12 : 0.45)));
   } else {
     const cx = F.cx, cy = F.cy, a = F.fw / 2, b = F.fh / 2;
+    const bkf = S.style === 'block';
     sh('face', 'かお', 'ring',
-      () => { ctx.beginPath(); ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2); },
-      (px, py) => Math.abs(Math.hypot((px - cx) / a, (py - cy) / b) - 1) <= 0.075,
+      () => { if (bkf) rr(cx - a, cy - b, a * 2, b * 2, a * 0.06); else { ctx.beginPath(); ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2); } },
+      (px, py) => Math.abs((bkf ? Math.max(Math.abs(px - cx) / a, Math.abs(py - cy) / b) : Math.hypot((px - cx) / a, (py - cy) / b)) - 1) <= 0.075,
       { x0: cx - a * 1.08, x1: cx + a * 1.08, y0: cy - b * 1.08, y1: cy + b * 1.08 }, Math.min(U * 0.02, F.fw * 0.03), F.fw * 0.075);
-    F.ear.vis.forEach(r => ell('ear', 'みみ', r.x, r.y, r.rx, r.ry));
-    F.eye.vis.forEach(r => ell('eye', 'め', r.x, r.y, r.ry * 1.15, r.ry * 1.15));
+    F.ear.vis.forEach(r => S.style === 'block' ? rrs('ear', 'みみ', r.x, r.y, r.rx, r.ry, r.rx * 0.15) : ell('ear', 'みみ', r.x, r.y, r.rx, r.ry));
+    F.eye.vis.forEach(r => S.style === 'block' ? rrs('eye', 'め', r.x, r.y, r.ry * 1.1, r.ry * 1.1, r.ry * 0.12) : ell('eye', 'め', r.x, r.y, r.ry * 1.15, r.ry * 1.15));
     F.brow.vis.forEach(r => curve('brow', 'まゆ', qPts(r.x - r.rx, r.y + r.ry * 0.5, r.x, r.y - r.ry * 1.5, r.x + r.rx, r.y + r.ry * 0.5, 16), Math.max(r.ry * 1.1, 8)));
     const nz = F.nose.vis[0]; curve('nose', 'はな', qPts(nz.x - nz.rx * 0.5, nz.y, nz.x, nz.y + nz.ry * 0.9, nz.x + nz.rx * 0.5, nz.y, 10), Math.max(nz.ry * 0.9, 8));
     const m = F.mouth.vis[0]; curve('mouth', 'くち', qPts(m.x - m.rx, m.y - m.ry * 0.3, m.x, m.y + m.ry * 1.6, m.x + m.rx, m.y - m.ry * 0.3, 16), Math.max(m.ry * 1.0, 8));
@@ -1132,7 +1199,7 @@ gear.addEventListener('pointerdown', e => {
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => gear.addEventListener(ev, () => { clearTimeout(holdTimer); gear.classList.remove('hold'); }));
 gear.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openPanel(); } });
 
-function curOpts(){ return { fig: S.fig, vocab: S.vocab, stage: S.stage, parts: String(S.parts), hint: S.hint, assist: S.assist, voice: S.voice, rate: S.rate, touch: S.firstOnly ? 'first' : 'all', look: S.look, cel: S.cel, vol: S.sound ? String(S.vol) : '0', skin: String(S.skin), hair: String(S.hair) }; }
+function curOpts(){ return { fig: S.fig, vocab: S.vocab, stage: S.stage, parts: String(S.parts), hint: S.hint, assist: S.assist, voice: S.voice, rate: S.rate, touch: S.firstOnly ? 'first' : 'all', look: S.look, cel: S.cel, vol: S.sound ? String(S.vol) : '0', skin: String(S.skin), hair: String(S.hair), style: S.style }; }
 const MORE_DEF = { touch: 'first', look: 'mid', vol: '30', cel: 'soft', skin: '0', hair: '0' };
 const MORE_LBL = { cel: { none: 'お祝い：なし', mid: 'お祝い：ふつう', big: 'お祝い：派手' }, touch: { all: '触れ方：どの指でも' }, look: { soft: '見た目：やさしい', strong: '見た目：はっきり' }, vol: { '0': '音：なし', '15': '音：小', '45': '音：大' }, skin: { '1': '肌の色', '2': '肌の色' }, hair: { '1': '髪の色', '2': '髪の色' } };
 function markOpts(){
@@ -1155,6 +1222,7 @@ function applySet(k, v){
   else if (k === 'touch') S.firstOnly = v === 'first';
   else if (k === 'look') S.look = v;
   else if (k === 'cel') S.cel = v;
+  else if (k === 'style'){ S.style = v; if (S.stage === 'N') newRound(); }
   else if (k === 'skin') S.skin = Number(v);
   else if (k === 'hair') S.hair = Number(v);
   else if (k === 'vol'){ const n = Number(v); if (n > 0){ S.vol = n; S.sound = true; } else S.sound = false; applyVol(); }
