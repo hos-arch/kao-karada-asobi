@@ -728,7 +728,7 @@ function drawScene(){ ctx.save(); ctx.globalAlpha = fadeA; drawFace(); if (S.sta
 
 // =====================================================================
 // ---- 段階B（見本に重ねる・顔）：部分を、見本の輪の中に自分で置く ----
-let pcs = [], drag = null, bPlaceN = 0, bIdle = 0, bPhT = 0, bCheered = false, bDone = false;
+let pcs = [], targets = [], drag = null, bPlaceN = 0, bIdle = 0, bPhT = 0, bCheered = false, bDone = false;
 function glyphAt(id, r, ox, oy, ink){
   const lw = Math.max(1.5, U * 0.0035), x = r.x + ox, y = r.y + oy;
   if (id === 'eye'){
@@ -746,8 +746,10 @@ function newRoundB(){
   phase = 'ask'; fadeA = 1; flashes.length = 0; drag = null; bPlaceN = 0; bIdle = 0; bPhT = 0; bCheered = false; bDone = false;
   if (S.parts === 2){ const pairs = [['eye', 'mouth'], ['eye', 'nose'], ['nose', 'mouth']]; touch = pairs[Math.floor(Math.random() * 3)]; }
   else touch = PART_IDS.slice();
-  pcs = [];
-  touch.forEach(id => F[id].vis.forEach(r => pcs.push({ id, tx: r.x, ty: r.y, rx: r.rx, ry: r.ry, x: 0, y: 0, hx: 0, hy: 0, placed: false })));
+  // 見本の場所（targets）と、置く部品（pcs）。左右の目は同じ部品なので、どちらの場所にも置ける
+  targets = [];
+  touch.forEach(id => F[id].vis.forEach(r => targets.push({ id, tx: r.x, ty: r.y, rx: r.rx, ry: r.ry, filled: false })));
+  pcs = targets.map(t => ({ id: t.id, rx: t.rx, ry: t.ry, x: 0, y: 0, hx: 0, hy: 0, placed: false }));
   const ord = shuffle(pcs.slice()), n = ord.length;
   const sp = Math.min(F.fw * 0.3, W * 0.9 / n);
   const trayY = Math.min(H - Math.max(100, H * 0.12) * 0.75, F.cy + F.fh * 0.62);
@@ -756,7 +758,7 @@ function newRoundB(){
 }
 function updateB(dt){
   if (!bDone){
-    if (pcs.length && pcs.every(p => p.placed)){ bDone = true; bPhT = 0; bCheered = false; phase = 'done'; }
+    if (targets.length && targets.every(t => t.filled)){ bDone = true; bPhT = 0; bCheered = false; phase = 'done'; }
   } else {
     bPhT += dt;
     if (bPhT > 0.5 && !bCheered){ bCheered = true; cheer(); }
@@ -777,10 +779,12 @@ function moveB(e){ if (!drag || e.pointerId !== drag.pid) return; const pt = pos
 function releaseB(pid){
   if (!drag || drag.pid !== pid) return;
   const p = drag.p; drag = null;
-  const d = Math.hypot(p.x - p.tx, p.y - p.ty), tol = p.rx * 1.25 * asst().m;
-  if (d <= tol){
-    p.placed = true; p.x = p.tx; p.y = p.ty; bIdle = 0;
-    addStars(p.tx, p.ty, p.rx * 1.1, Math.max(1, Math.round(LOOK[S.look].stars / 2)));
+  const tol = p.rx * 1.25 * asst().m;
+  let best = null, bd = 1e9;
+  targets.forEach(t => { if (t.filled || t.id !== p.id) return; const d = Math.hypot(p.x - t.tx, p.y - t.ty); if (d < bd){ bd = d; best = t; } });
+  if (best && bd <= tol){
+    best.filled = true; p.placed = true; p.x = best.tx; p.y = best.ty; bIdle = 0;
+    addStars(best.tx, best.ty, best.rx * 1.1, Math.max(1, Math.round(LOOK[S.look].stars / 2)));
     ping(PENTA[bPlaceN % 8] * 0.75, 0.06, 0.45, 2.9); bPlaceN++;
     say(PARTS[p.id].name + 'だね');
   } else { p.x = p.hx; p.y = p.hy; }   // 違う場所：音も示しもなく、元の場所へ戻る
@@ -788,19 +792,19 @@ function releaseB(pid){
 function drawB(){
   const a = asst(), ink = '#4a3a30';
   // 見本（うすい点線の輪）
-  pcs.forEach(p => { if (p.placed) return;
-    ctx.beginPath(); ctx.ellipse(p.tx, p.ty, p.rx * 1.15, p.ry * 1.15, 0, 0, Math.PI * 2);
+  targets.forEach(t => { if (t.filled) return;
+    ctx.beginPath(); ctx.ellipse(t.tx, t.ty, t.rx * 1.15, t.ry * 1.15, 0, 0, Math.PI * 2);
     ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.35)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]); });
   // ヒント（次に置く場所を、やわらかく光らせる）
-  const next = pcs.find(p => !p.placed);
+  const next = targets.find(t => !t.filled);
   if (next && S.hint === 'on' && !drag){
     let al = a.base ? 0.2 + 0.05 * Math.sin(T * 1.6) : 0;
     if (bIdle > a.idle) al = Math.max(al, 0.4 + 0.25 * Math.sin(T * 2.2));
     if (al > 0) glowAt([{ x: next.tx, y: next.ty, rx: next.rx, ry: next.ry }], '#f2c14e', al);
   }
   // 部分（置いたもの・置き場のもの・いま持っているもの）
-  pcs.forEach(p => { if (drag && drag.p === p) return; glyphAt(p.id, { x: p.tx, y: p.ty, rx: p.rx, ry: p.ry }, p.x - p.tx, p.y - p.ty, ink); });
-  if (drag) glyphAt(drag.p.id, { x: drag.p.tx, y: drag.p.ty, rx: drag.p.rx, ry: drag.p.ry }, drag.p.x - drag.p.tx, drag.p.y - drag.p.ty, ink);
+  pcs.forEach(p => { if (drag && drag.p === p) return; glyphAt(p.id, { x: p.x, y: p.y, rx: p.rx, ry: p.ry }, 0, 0, ink); });
+  if (drag) glyphAt(drag.p.id, { x: drag.p.x, y: drag.p.y, rx: drag.p.rx, ry: drag.p.ry }, 0, 0, ink);
 }
 
 // =====================================================================
