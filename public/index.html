@@ -628,7 +628,7 @@ function drawFace(){
   // 影（平らな色の、うすい下がり）
   ctx.beginPath(); ctx.ellipse(cx + U * 0.005, cy + U * 0.01, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(90,64,40,.12)'; ctx.fill();
   // 髪（うしろ）
-  ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.05, fw * 0.545, fh * 0.55, 0, 0, Math.PI * 2); ctx.fillStyle = hair; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.05, fw * 0.545, fh * 0.55, 0, 0, Math.PI * 2); ctx.fillStyle = hair; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
   // 耳
   [-1, 1].forEach(s => { ctx.beginPath(); ctx.ellipse(cx + s * fw * 0.5, cy + fh * 0.03, fw * 0.075, fh * 0.095, 0, 0, Math.PI * 2); ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke(); });
   // 顔（平らな色）
@@ -641,13 +641,21 @@ function drawFace(){
     if (hintT > 0) al = Math.max(al, 0.4 + 0.25 * Math.sin(T * 2.2));
     if (al > 0) glowAt(F[target].vis, '#f2c14e', al);
   }
-  // 前髪（一つのかたまり）
-  ctx.save(); ctx.beginPath(); ctx.ellipse(cx, cy, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.clip();
+  // 前髪（一つのかたまり。髪全体の形で切り抜き、顔のふちが透けないようにする）
+  ctx.save(); ctx.beginPath(); ctx.ellipse(cx, cy - fh * 0.05, fw * 0.545 - lw / 2, fh * 0.55 - lw / 2, 0, 0, Math.PI * 2); ctx.clip();
   ctx.beginPath(); ctx.moveTo(cx - fw, cy - fh); ctx.lineTo(cx + fw, cy - fh); ctx.lineTo(cx + fw, cy - fh * 0.22);
   ctx.quadraticCurveTo(cx + fw * 0.3, cy - fh * 0.26, cx, cy - fh * 0.24);
   ctx.quadraticCurveTo(cx - fw * 0.3, cy - fh * 0.26, cx - fw, cy - fh * 0.2); ctx.closePath();
   ctx.fillStyle = hair; ctx.fill(); ctx.restore();
-  ctx.beginPath(); ctx.ellipse(cx, cy, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+  // 顔の輪郭の線は、前髪より下だけ（髪の上に線が透けないように）
+  ctx.save(); ctx.beginPath(); ctx.rect(0, cy - fh * 0.2, W, H); ctx.clip();
+  ctx.beginPath(); ctx.ellipse(cx, cy, fw / 2, fh / 2, 0, 0, Math.PI * 2); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke(); ctx.restore();
+  // まゆ（案Aの飾り。いまは触れても反応しない）
+  F.eye.vis.forEach(r => {
+    const by = cy - fh * 0.15, bw = fw * 0.065;
+    ctx.beginPath(); ctx.moveTo(r.x - bw, by + fh * 0.012); ctx.quadraticCurveTo(r.x, by - fh * 0.03, r.x + bw, by + fh * 0.012);
+    ctx.strokeStyle = shade(hair, 0.8); ctx.lineWidth = lw * 1.5; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+  });
   // め（丸い点と、小さな白いつや）
   F.eye.vis.forEach(r => {
     ctx.beginPath(); ctx.ellipse(r.x, r.y, r.ry * 0.92, r.ry * 0.92, 0, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
