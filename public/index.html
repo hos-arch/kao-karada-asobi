@@ -124,6 +124,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
       <li>名前を聞いて、その部分を見ているか、指さすか。</li>
       <li>似た部分（め・はな・くち、まゆ）を間違えるか。間違えたとき、自分で直すか。</li>
       <li>見本に重ねるときは、見本を見てから置くか。違う場所に置いたとき、自分で置き直すか。</li>
+      <li>なぞるときは、線を追えるか。さわって聞くときは、名前を聞いて、その部分と結びつくか。</li>
       <li>気づいたことは、紙のメモに書いてください。このアプリは名前も記録も保存しません。</li>
     </ul>
     <h2>手助け</h2>
@@ -174,18 +175,20 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
       <div class="row">
         <h3>段階</h3>
         <div class="opts">
-          <button class="opt" data-set="stage" data-v="A">指さし（名前を聞いて指す）</button>
-          <button class="opt" data-set="stage" data-v="B">見本に重ねる（顔の部分を置く）</button>
+          <button class="opt" data-set="stage" data-v="A">指さし</button>
+          <button class="opt" data-set="stage" data-v="B">重ねる</button>
+          <button class="opt" data-set="stage" data-v="N">なぞる</button>
+          <button class="opt" data-set="stage" data-v="T">さわって聞く</button>
         </div>
-        <p class="note">見本に重ねるときは、顔の見本の輪に、部分を自分で持っていって置きます。違う場所に置いたときは、静かに元の場所へ戻ります。</p>
+        <p class="note">指さし：名前を聞いて、その部分をさします。重ねる：部分を、見本の場所に持っていって置きます。違う場所では、元の場所へ戻ります。なぞる：外の線を指でなぞります。さわって聞く：部分をさわると、その名前を答えます。</p>
       </div>
       <div class="row">
         <h3>ことば（顔のとき）</h3>
         <div class="opts">
-          <button class="opt" data-set="vocab" data-v="core">基本の3つ（め・はな・くち）</button>
-          <button class="opt" data-set="vocab" data-v="wide">ひろげる（＋みみ・まゆ）</button>
+          <button class="opt" data-set="vocab" data-v="core">基本の3つ</button>
+          <button class="opt" data-set="vocab" data-v="wide">ひろげる</button>
         </div>
-        <p class="note">まゆは目に近いので、手助け「大きい」のときは、目とまゆを間違えやすくなります。</p>
+        <p class="note">基本は、め・はな・くち。ひろげるは、＋みみ・まゆ。まゆは目に近いので、手助け「大きい」のときは、目とまゆを間違えやすくなります。</p>
       </div>
       <div class="row">
         <h3>触れられる部分の数</h3>
@@ -479,7 +482,7 @@ const PENTA = [523, 587, 659, 784, 880, 988, 1175, 1319];
 const SKIN = ['#f6d3b3', '#e3b08a', '#b97f57'];
 const HAIR = ['#5b3f2e', '#7a4a2a', '#c58b45'];
 const PARTS = {
-  eye: { name: 'め' }, nose: { name: 'はな' }, mouth: { name: 'くち' }, ear: { name: 'みみ' }, brow: { name: 'まゆ' },
+  face: { name: 'かお' }, eye: { name: 'め' }, nose: { name: 'はな' }, mouth: { name: 'くち' }, ear: { name: 'みみ' }, brow: { name: 'まゆ' },
   head: { name: 'あたま' }, torso: { name: 'おなか' }, arm: { name: 'うで' }, leg: { name: 'あし' }
 };
 const FACE_CORE = ['eye', 'nose', 'mouth'], FACE_WIDE = ['eye', 'nose', 'mouth', 'ear', 'brow'], BODY_IDS = ['head', 'torso', 'arm', 'leg'];
@@ -663,6 +666,7 @@ const flashes = [];
 const active = () => $('intro').classList.contains('hide') && !$('panel').classList.contains('open');
 function newRound(){
   if (S.stage === 'B'){ newRoundB(); return; }
+  if (S.stage === 'N'){ newRoundN(); return; }
   phase = 'ask'; fadeA = 1; cheered = false; placeN = 0; flashes.length = 0;
   touch = pickTouch();
   order = shuffle(touch.slice());
@@ -670,8 +674,9 @@ function newRound(){
   qi = 0; startQ();
 }
 function startQ(){ target = order[qi]; last = target; askT = 0; spoken = false; idleT = 0; hintT = 0; phase = 'ask'; stopSpeech(); }
-function skipQ(){ if (S.stage === 'B'){ newRoundB(); return; } if (phase !== 'ask') return; qi++; if (qi >= order.length) newRound(); else startQ(); }
+function skipQ(){ if (S.stage === 'B'){ newRoundB(); return; } if (S.stage === 'N'){ newRoundN(); return; } if (S.stage === 'T') return; if (phase !== 'ask') return; qi++; if (qi >= order.length) newRound(); else startQ(); }
 function again(){
+  if (S.stage === 'T' || S.stage === 'N') return;
   if (S.stage === 'B'){ const p = pcs.find(q => !q.placed); if (p){ spoken = true; say(promptOf(p.id)); } return; }
   if (phase === 'ask'){ spoken = true; say(promptOf(target)); }
 }
@@ -687,7 +692,8 @@ function partAt(pt){   // いちばん近い部分（顔のぜんぶの部分か
   return best;
 }
 function onTap(pt){
-  if (S.stage === 'B') return;
+  if (S.stage === 'B' || S.stage === 'N') return;
+  if (S.stage === 'T'){ tapNameT(pt); return; }
   if (frozen || phase !== 'ask' || !active()) return;
   const id = partAt(pt); if (!id || !touch.includes(id)) return;   // 輪のない部分・部分でない所は、反応しない
   idleT = 0; hintT = 0;
@@ -703,6 +709,8 @@ function update(dt){
   for (let i = flashes.length - 1; i >= 0; i--){ flashes[i].t += dt; if (flashes[i].t > (flashes[i].ok ? 1.5 : 0.7)) flashes.splice(i, 1); }
   if (!active()) return;
   if (S.stage === 'B'){ updateB(dt); return; }
+  if (S.stage === 'N'){ updateN(dt); return; }
+  if (S.stage === 'T') return;
   if (phase === 'ask'){
     askT += dt; idleT += dt;
     if (!spoken && askT > 0.7){ spoken = true; say(promptOf(target)); }
@@ -803,26 +811,39 @@ function drawFace(){
 function drawGlows(){
   const a = asst();
   flashes.forEach(f => { if (!F[f.id]) return; const u = f.t / (f.ok ? 1.5 : 0.7); glowAt(F[f.id].vis, f.ok ? '#f2c14e' : '#ffffff', (f.ok ? 0.85 : 0.6) * Math.pow(1 - u, 1.4)); });
-  if (phase === 'ask' && S.hint === 'on' && S.stage !== 'B' && target && F[target]){
+  if (phase === 'ask' && S.hint === 'on' && S.stage === 'A' && target && F[target]){
     let al = a.base ? 0.2 + 0.05 * Math.sin(T * 1.6) : 0;
     if (hintT > 0) al = Math.max(al, 0.4 + 0.25 * Math.sin(T * 2.2));
     if (al > 0) glowAt(F[target].vis, '#f2c14e', al);
   }
 }
 function drawRings(){
-  if (S.parts === 2 && phase !== 'done' && S.stage !== 'B'){
+  if (S.parts === 2 && phase !== 'done' && S.stage === 'A'){
     touch.forEach(id => F[id] && F[id].hit.forEach(r => {
       ctx.beginPath(); ctx.ellipse(r.x, r.y, r.rx * 1.02, r.ry * 1.02, 0, 0, Math.PI * 2);
       ctx.setLineDash([U * 0.012, U * 0.01]); ctx.strokeStyle = 'rgba(90,64,40,.4)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
     }));
   }
 }
-// 身体の絵（段階Aでは全部を描く。段階Bでは、見本の形と置いた部分だけ）
+// 身体の全体（首・からだ・うで・あし・あたま。順番に重ねる）
+function drawBodyFull(alpha){
+  const g = ctx.globalAlpha; ctx.globalAlpha = g * alpha;
+  F.leg.vis.forEach(r => glyph('leg', r.x, r.y, r.rx, r.ry, 1));
+  const n = F.torso.vis[0];
+  ctx.fillStyle = SKIN[S.skin]; ctx.strokeStyle = '#4a3a30'; ctx.lineWidth = Math.max(1.5, U * 0.0035);
+  rr(n.x - n.rx * 0.22, n.y - n.ry * 1.3, n.rx * 0.44, n.ry * 0.5, n.rx * 0.15); ctx.fill(); ctx.stroke();
+  glyph('torso', n.x, n.y, n.rx, n.ry, 1);
+  F.arm.vis.forEach(r => glyph('arm', r.x, r.y, r.rx, r.ry, 1));
+  F.head.vis.forEach(r => glyph('head', r.x, r.y, r.rx, r.ry, 1));
+  ctx.globalAlpha = g;
+}
 function drawBody(){
-  if (S.stage !== 'B') ['leg', 'torso', 'arm', 'head'].forEach(id => F[id].vis.forEach(r => glyph(id, r.x, r.y, r.rx, r.ry, 1)));
+  if (S.stage === 'A' || S.stage === 'T') drawBodyFull(1);
+  else if (S.stage === 'N') drawBodyFull(0.5);
+  // 段階B：見本（うすい形）と部分は drawB で描く
   drawGlows(); drawRings();
 }
-function drawScene(){ ctx.save(); ctx.globalAlpha = fadeA; if (S.fig === 'body') drawBody(); else drawFace(); if (S.stage === 'B') drawB(); ctx.restore(); }
+function drawScene(){ ctx.save(); ctx.globalAlpha = fadeA; if (S.fig === 'body') drawBody(); else drawFace(); if (S.stage === 'B') drawB(); if (S.stage === 'N') drawN(); ctx.restore(); }
 
 // =====================================================================
 // ---- 段階B・C（見本に重ねる：顔・身体）：部分を、見本の場所に自分で置く ----
@@ -908,7 +929,7 @@ function guideShape(id, r){   // 見本（うすい点線）。顔は輪、身�
 }
 function drawB(){
   const a = asst();
-  targets.forEach(t => { if (!t.filled) guideShape(t.id, tpos(t)); });
+  targets.forEach(t => guideShape(t.id, tpos(t)));
   // ヒント（次に置く場所を、やわらかく光らせる）
   const next = targets.find(t => !t.filled);
   if (next && S.hint === 'on' && !drag){
@@ -926,6 +947,100 @@ function drawB(){
 }
 
 // =====================================================================
+// ---- さわって聞く（段階T）：部分をさわると、その名前を答える。正誤はない ----
+function tapNameT(pt){
+  const id = partAt(pt); if (!id) return;
+  flashes.push({ id, ok: true, t: 0 });
+  F[id].vis.forEach(r => addStars(r.x, r.y, r.rx * 1.1, Math.max(1, Math.round(LOOK[S.look].stars / 3))));
+  stopSpeech(); say(PARTS[id].name);
+}
+
+// ---- なぞる（段階N）：外の線を指でなぞる。すべての線をなぞれたら、お祝い ----
+let trc = [], trcLast = {}, nDone = false;
+function circPts(x, y, rx, ry, n){ const p = []; for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; p.push({ x: x + Math.cos(a) * rx, y: y + Math.sin(a) * ry }); } return p; }
+function qPts(x0, y0, cx1, cy1, x1, y1, n){ const p = []; for (let i = 0; i <= n; i++){ const t = i / n, u = 1 - t; p.push({ x: u * u * x0 + 2 * u * t * cx1 + t * t * x1, y: u * u * y0 + 2 * u * t * cy1 + t * t * y1 }); } return p; }
+function rrPts(x, y, w, h, r){
+  r = Math.min(r, w / 2, h / 2); const p = [];
+  const seg = (ax, ay, bx, by, k) => { for (let i = 0; i < k; i++) p.push({ x: ax + (bx - ax) * i / k, y: ay + (by - ay) * i / k }); };
+  const arc = (cx, cy, a0) => { for (let i = 0; i < 5; i++){ const a = a0 + i / 4 * Math.PI / 2; p.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }); } };
+  seg(x + r, y, x + w - r, y, 6); arc(x + w - r, y + r, -Math.PI / 2);
+  seg(x + w, y + r, x + w, y + h - r, 6); arc(x + w - r, y + h - r, 0);
+  seg(x + w - r, y + h, x + r, y + h, 6); arc(x + r, y + h - r, Math.PI / 2);
+  seg(x, y + h - r, x, y + r, 6); arc(x + r, y + r, Math.PI);
+  return p;
+}
+function buildShapesN(){
+  const out = [];
+  const add = (id, name, pts) => {
+    const xs = pts.map(q => q.x), ys = pts.map(q => q.y);
+    out.push({ id, name, pts, cov: pts.map(() => false), n: 0, done: false,
+      cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2,
+      rx: (Math.max(...xs) - Math.min(...xs)) / 2, ry: (Math.max(...ys) - Math.min(...ys)) / 2 });
+  };
+  if (S.fig === 'body'){
+    F.head.vis.forEach(r => add('head', 'あたま', circPts(r.x, r.y, r.rx * 1.04, r.rx * 1.04, 32)));
+    F.torso.vis.forEach(r => add('torso', 'おなか', rrPts(r.x - r.rx, r.y - r.ry, r.rx * 2, r.ry * 2, r.rx * 0.55)));
+    F.arm.vis.forEach(r => add('arm', 'うで', rrPts(r.x - r.rx, r.y - r.ry, r.rx * 2, r.ry * 2, r.rx)));
+    F.leg.vis.forEach(r => add('leg', 'あし', rrPts(r.x - r.rx, r.y - r.ry, r.rx * 2, r.ry * 2, r.rx * 0.45)));
+  } else {
+    add('face', 'かお', circPts(F.cx, F.cy, F.fw / 2, F.fh / 2, 64));
+    F.ear.vis.forEach(r => add('ear', 'みみ', circPts(r.x, r.y, r.rx, r.ry, 24)));
+    F.eye.vis.forEach(r => add('eye', 'め', circPts(r.x, r.y, r.ry * 0.95, r.ry * 0.95, 20)));
+    F.brow.vis.forEach(r => add('brow', 'まゆ', qPts(r.x - r.rx, r.y + r.ry * 0.5, r.x, r.y - r.ry * 1.5, r.x + r.rx, r.y + r.ry * 0.5, 16)));
+    const nz = F.nose.vis[0]; add('nose', 'はな', qPts(nz.x - nz.rx * 0.5, nz.y, nz.x, nz.y + nz.ry * 0.9, nz.x + nz.rx * 0.5, nz.y, 10));
+    const m = F.mouth.vis[0]; add('mouth', 'くち', qPts(m.x - m.rx, m.y - m.ry * 0.3, m.x, m.y + m.ry * 1.6, m.x + m.rx, m.y - m.ry * 0.3, 16));
+  }
+  return out;
+}
+function newRoundN(){
+  phase = 'ask'; fadeA = 1; flashes.length = 0; bIdle = 0; bPhT = 0; bCheered = false; nDone = false;
+  trc = buildShapesN(); trcLast = {};
+}
+function updateN(dt){
+  if (!nDone){
+    if (trc.length && trc.every(sh => sh.done)){ nDone = true; bPhT = 0; bCheered = false; phase = 'done'; }
+    else bIdle += dt;
+  } else {
+    bPhT += dt;
+    if (bPhT > 0.5 && !bCheered){ bCheered = true; cheer(); }
+    if (bPhT > 3.2) fadeA = Math.max(0, 1 - (bPhT - 3.2) / 0.7);
+    if (bPhT > 3.9) newRoundN();
+  }
+}
+function markN(pt, pid){
+  if (nDone) return;
+  const rad = Math.max(F.fw * 0.075, 16) * asst().m;
+  const prev = trcLast[pid]; trcLast[pid] = pt;
+  const steps = prev ? 4 : 1;
+  for (let k = 0; k < steps; k++){
+    const q = prev ? { x: prev.x + (pt.x - prev.x) * (k + 1) / steps, y: prev.y + (pt.y - prev.y) * (k + 1) / steps } : pt;
+    trc.forEach(sh => {
+      if (sh.done) return;
+      sh.pts.forEach((p, i) => { if (!sh.cov[i] && Math.hypot(p.x - q.x, p.y - q.y) <= rad){ sh.cov[i] = true; sh.n++; } });
+      if (sh.n >= sh.pts.length * 0.75){
+        sh.done = true; bIdle = 0;
+        say(sh.name + 'だね');
+        addStars(sh.cx, sh.cy, Math.max(sh.rx, sh.ry) * 0.5, Math.max(1, Math.round(LOOK[S.look].stars / 2)));
+        ping(PENTA[bPlaceN % 8] * 0.75, 0.06, 0.45, 2.9); bPlaceN++;
+      }
+    });
+  }
+  bIdle = 0;
+}
+function drawN(){
+  const a = asst();
+  trc.forEach(sh => {
+    sh.pts.forEach((p, i) => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, sh.cov[i] ? U * 0.009 : U * 0.0045, 0, Math.PI * 2);
+      ctx.fillStyle = sh.cov[i] ? '#f2c14e' : 'rgba(90,64,40,.4)'; ctx.fill();
+    });
+  });
+  if (!nDone && bIdle > a.idle){
+    const sh = trc.find(q => !q.done);
+    if (sh) glowAt([{ x: sh.cx, y: sh.cy, rx: sh.rx, ry: sh.ry }], '#f2c14e', 0.4 + 0.25 * Math.sin(T * 2.2));
+  }
+}
+
 // ---- 指の入力 ----
 const ptrs = new Map();
 function pos(e){ const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
@@ -936,10 +1051,11 @@ cv.addEventListener('pointerdown', e => {
   ptrs.set(e.pointerId, 1);
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   if (S.stage === 'B'){ grabB(pos(e), e.pointerId); return; }
+  if (S.stage === 'N'){ markN(pos(e), e.pointerId); return; }
   onTap(pos(e));
 });
-function ptrUp(e){ ptrs.delete(e.pointerId); releaseB(e.pointerId); }
-cv.addEventListener('pointermove', moveB);
+function ptrUp(e){ ptrs.delete(e.pointerId); delete trcLast[e.pointerId]; releaseB(e.pointerId); }
+cv.addEventListener('pointermove', e => { moveB(e); if (S.stage === 'N' && ptrs.has(e.pointerId)) markN(pos(e), e.pointerId); });
 cv.addEventListener('pointerup', ptrUp);
 cv.addEventListener('pointercancel', ptrUp);
 document.addEventListener('gesturestart', e => e.preventDefault());
