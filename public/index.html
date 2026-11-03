@@ -752,6 +752,7 @@ function onTap(pt){
 }
 
 function update(dt){
+  updSparks(dt);
   for (let i = flashes.length - 1; i >= 0; i--){ flashes[i].t += dt; if (flashes[i].t > (flashes[i].ok ? 1.5 : 0.7)) flashes.splice(i, 1); }
   if (!active()) return;
   if (S.stage === 'B'){ updateB(dt); return; }
@@ -789,7 +790,7 @@ function drawFaceBlock(){
   const R = (a, b, c, d, col, r) => { rr(X(a), Y(b), (c - a) * fw, (d - b) * fh, r * fw); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.lineJoin = 'miter'; ctx.stroke(); };
   R(-0.56, -0.56, 0.56, 0.4, shade(hair, 0.9), 0.03);                 // うしろの髪
   R(-0.15, 0.4, 0.15, 0.6, skin, 0.01);                                 // 首
-  F.ear.vis.forEach((r, k) => { if (S.stage === 'B' && vocab().includes('ear') && !targetFilled('ear', k)) return; glyph('ear', r.x, r.y, r.rx, r.ry, 1); });
+  F.ear.vis.forEach((r, k) => { if (partGuide('ear', k)) return; glyph('ear', r.x, r.y, r.rx, r.ry, 1); });
   R(-0.5, -0.5, 0.5, 0.5, skin, 0.03);                                  // 顔
   drawGlows();
   ctx.save(); rr(X(-0.56), Y(-0.56), 1.12 * fw, 0.96 * fh, 0.03 * fw); ctx.clip();   // 前髪（かみのけ）
@@ -797,8 +798,10 @@ function drawFaceBlock(){
   ctx.fillRect(X(-0.6), Y(-0.3), 0.14 * fw, 0.55 * fh); ctx.fillRect(X(0.46), Y(-0.3), 0.14 * fw, 0.55 * fh);
   ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(-0.6), Y(-0.22)); ctx.lineTo(X(0.6), Y(-0.22)); ctx.stroke();
   ctx.restore();
-  F.brow.vis.forEach(r => { if (S.stage === 'B' && vocab().includes('brow')) return; glyph('brow', r.x, r.y, r.rx, r.ry, 1); });
-  if (S.stage !== 'B'){ F.eye.vis.forEach(r => glyph('eye', r.x, r.y, r.rx, r.ry, 1)); glyph('nose', F.nose.vis[0].x, F.nose.vis[0].y, F.nose.vis[0].rx, F.nose.vis[0].ry, 1); glyph('mouth', F.mouth.vis[0].x, F.mouth.vis[0].y, F.mouth.vis[0].rx, F.mouth.vis[0].ry, 1); }
+  F.brow.vis.forEach((r, k) => { if (partGuide('brow', k)) return; glyph('brow', r.x, r.y, r.rx, r.ry, 1); });
+  F.eye.vis.forEach((r, k) => { if (!partGuide('eye', k)) glyph('eye', r.x, r.y, r.rx, r.ry, 1); });
+  if (!partGuide('nose', 0)) glyph('nose', F.nose.vis[0].x, F.nose.vis[0].y, F.nose.vis[0].rx, F.nose.vis[0].ry, 1);
+  if (!partGuide('mouth', 0)) glyph('mouth', F.mouth.vis[0].x, F.mouth.vis[0].y, F.mouth.vis[0].rx, F.mouth.vis[0].ry, 1);
   drawRings();
 }
 function drawFace(){
@@ -840,7 +843,7 @@ function drawFace(){
   ctx.beginPath(); ctx.moveTo(X(-0.14), Y(0.4)); ctx.lineTo(X(-0.14), Y(0.56)); ctx.quadraticCurveTo(X(0), Y(0.64), X(0.14), Y(0.56)); ctx.lineTo(X(0.14), Y(0.4)); ctx.closePath();
   ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(-0.14), Y(0.4)); ctx.lineTo(X(-0.14), Y(0.56)); ctx.moveTo(X(0.14), Y(0.4)); ctx.lineTo(X(0.14), Y(0.56)); ctx.stroke();
   // 2 耳（髪の外に少し出る）
-  F.ear.vis.forEach((r, k) => { if (S.stage === 'B' && vocab().includes('ear') && !targetFilled('ear', k)) return; glyph('ear', r.x, r.y, r.rx, r.ry, 1); });
+  F.ear.vis.forEach((r, k) => { if (partGuide('ear', k)) return; glyph('ear', r.x, r.y, r.rx, r.ry, 1); });
   // 3 顔
   facePath(); ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
   // 4 光（さわった部分・ヒント）
@@ -854,19 +857,19 @@ function drawFace(){
   ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
   ctx.restore();
   // 6 まゆ（案Aの飾り。いまは触れても反応しない）
-  F.brow.vis.forEach(r => { if (S.stage === 'B' && vocab().includes('brow')) return; glyph('brow', r.x, r.y, r.rx, r.ry, 1); });
-  if (S.stage !== 'B'){
+  F.brow.vis.forEach((r, k) => { if (partGuide('brow', k)) return; glyph('brow', r.x, r.y, r.rx, r.ry, 1); });
+  {
   // 7 め（丸い点と、小さな白いつや）
-  F.eye.vis.forEach(r => {
+  F.eye.vis.forEach((r, k) => { if (partGuide('eye', k)) return;
     ctx.beginPath(); ctx.ellipse(r.x, r.y, r.ry * 0.95, r.ry * 0.95, 0, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
     ctx.beginPath(); ctx.arc(r.x - r.ry * 0.28, r.y - r.ry * 0.3, r.ry * 0.27, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
   });
   // 8 はな（小さな線）
-  { const r = F.nose.vis[0];
+  if (!partGuide('nose', 0)) { const r = F.nose.vis[0];
     ctx.beginPath(); ctx.moveTo(r.x - r.rx * 0.5, r.y); ctx.quadraticCurveTo(r.x, r.y + r.ry * 0.9, r.x + r.rx * 0.5, r.y);
     ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt'; }
   // 9 くち（やさしい、とじた口の線）
-  { const r = F.mouth.vis[0];
+  if (!partGuide('mouth', 0)) { const r = F.mouth.vis[0];
     ctx.beginPath(); ctx.moveTo(r.x - r.rx, r.y - r.ry * 0.3); ctx.quadraticCurveTo(r.x, r.y + r.ry * 1.6, r.x + r.rx, r.y - r.ry * 0.3);
     ctx.strokeStyle = ink; ctx.lineWidth = lw * 1.2; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt'; }
   }
@@ -891,21 +894,24 @@ function drawRings(){
   }
 }
 // 身体の全体（首・からだ・うで・あし・あたま。順番に重ねる）
-function drawBodyFull(alpha){
+function drawBodyFull(alpha, skip){
+  skip = skip || (() => false);
   const g = ctx.globalAlpha; ctx.globalAlpha = g * alpha;
-  F.leg.vis.forEach(r => glyph('leg', r.x, r.y, r.rx, r.ry, 1));
+  F.leg.vis.forEach((r, k) => { if (!skip('leg', k)) glyph('leg', r.x, r.y, r.rx, r.ry, 1); });
   const n = F.torso.vis[0];
-  ctx.fillStyle = SKIN[S.skin]; ctx.strokeStyle = '#4a3a30'; ctx.lineWidth = Math.max(1.5, U * 0.0035);
-  rr(n.x - n.rx * 0.22, n.y - n.ry * 1.3, n.rx * 0.44, n.ry * 0.5, S.style === 'block' ? n.rx * 0.03 : n.rx * 0.15); ctx.fill(); ctx.stroke();
-  glyph('torso', n.x, n.y, n.rx, n.ry, 1);
-  F.arm.vis.forEach(r => glyph('arm', r.x, r.y, r.rx, r.ry, 1));
-  F.head.vis.forEach(r => glyph('head', r.x, r.y, r.rx, r.ry, 1));
+  if (!skip('torso', 0)){
+    ctx.fillStyle = SKIN[S.skin]; ctx.strokeStyle = '#4a3a30'; ctx.lineWidth = Math.max(1.5, U * 0.0035);
+    rr(n.x - n.rx * 0.22, n.y - n.ry * 1.3, n.rx * 0.44, n.ry * 0.5, S.style === 'block' ? n.rx * 0.03 : n.rx * 0.15); ctx.fill(); ctx.stroke();
+    glyph('torso', n.x, n.y, n.rx, n.ry, 1);
+  }
+  F.arm.vis.forEach((r, k) => { if (!skip('arm', k)) glyph('arm', r.x, r.y, r.rx, r.ry, 1); });
+  F.head.vis.forEach((r, k) => { if (!skip('head', k)) glyph('head', r.x, r.y, r.rx, r.ry, 1); });
   ctx.globalAlpha = g;
 }
 function drawBody(){
   if (S.stage === 'A' || S.stage === 'T') drawBodyFull(1);
   else if (S.stage === 'N') drawBodyFull(0.5);
-  // 段階B：見本（うすい形）と部分は drawB で描く
+  else if (S.stage === 'B') drawBodyFull(1, partGuide);   // 指示以外の部位は、いつも見える
   drawGlows(); drawRings();
 }
 function drawScene(){ ctx.save(); ctx.globalAlpha = fadeA; if (S.fig === 'body') drawBody(); else drawFace(); if (S.stage === 'B') drawB(); if (S.stage === 'N') drawN(); ctx.restore(); }
@@ -917,6 +923,7 @@ const ZORD = { leg: 0, torso: 1, arm: 2, head: 3, ear: 0, eye: 1, nose: 1, mouth
 const tpos = t => F[t.id].vis[t.k];                // 見本の場所（画面が変わっても、いつもいまの位置）
 const pdim = p => F[p.id].vis[0];                  // 部分の大きさ（左右の部分は、同じ形）
 const targetFilled = (id, k) => targets.some(t => t.id === id && t.k === k && t.filled);
+const partGuide = (id, k) => S.stage === 'B' && targets.some(t => t.id === id && t.k === k && !t.filled);   // 見本（まだ置いていない所）
 function trayLayout(){   // 置き場：下の一列。入りきらないときは、小さくして並べる（持つと、もとの大きさになる）
   const n = pcs.length; if (!n) return;
   const body = S.fig === 'body', gap = Math.max(8, W * 0.02), rowW = W * 0.92;
@@ -988,7 +995,8 @@ function guideShape(id, r){   // 見本（うすい点線）。顔は輪、身�
     if (id === 'head'){ ctx.beginPath(); ctx.arc(r.x, r.y, r.rx * 1.04, 0, Math.PI * 2); }
     else rr(r.x - r.rx * 1.04, r.y - r.ry * 1.03, r.rx * 2.08, r.ry * 2.06, Math.min(r.rx, r.ry) * 0.7);
     ctx.fillStyle = 'rgba(90,64,40,.06)'; ctx.fill();
-  } else { ctx.beginPath(); ctx.ellipse(r.x, r.y, r.rx * 1.15, r.ry * 1.15, 0, 0, Math.PI * 2); }
+  } else if (S.style === 'block'){ rr(r.x - r.rx * 1.15, r.y - r.ry * 1.15, r.rx * 2.3, r.ry * 2.3, Math.min(r.rx, r.ry) * 0.2); }
+  else { ctx.beginPath(); ctx.ellipse(r.x, r.y, r.rx * 1.15, r.ry * 1.15, 0, 0, Math.PI * 2); }
   ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.35)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
   ctx.restore();
 }
@@ -1034,27 +1042,40 @@ function rrPts(x, y, w, h, r){
   seg(x, y + h - r, x, y + r, 6); arc(x + r, y + r, Math.PI);
   return p;
 }
+const TQ = a => 'rgba(48,213,200,' + a + ')';   // ターコイズ（黄色系とちがい、見えやすい色）
+const sparks = [];
+function spark(x, y){
+  if (sparks.length > 240) return;
+  const a = rnd(0, Math.PI * 2), v = rnd(0.3, 1) * U * 0.09;
+  sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - U * 0.04, t: 0, life: rnd(0.45, 0.85), r: U * rnd(0.006, 0.012) });
+}
+function updSparks(dt){ for (let i = sparks.length - 1; i >= 0; i--){ const s = sparks[i]; s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += U * 0.12 * dt; if (s.t > s.life) sparks.splice(i, 1); } }
+function drawSparks(){
+  sparks.forEach(s => { const k = s.t / s.life; ctx.save(); ctx.globalAlpha = (1 - k) * 0.95; ctx.fillStyle = TQ(1); ctx.beginPath(); ctx.arc(s.x, s.y, s.r * (1 - k * 0.5), 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+}
 function buildShapesN(){
-  // 塗る形。「fill」＝中を塗る、「stroke」＝細い線の形を、太い帯で塗る、「ring」＝輪郭を、太い帯で塗る
-  const out = [];
+  // 塗る形。kind「fill」＝中を塗る、「stroke」＝細い線を太い帯で塗る、「ring」＝輪郭を太い帯で塗る。
+  // 塗りは、線の外へ、すこしはみ出してよい（はみ出すほど、達成しやすい）。
+  const out = [], g = Math.max(F.fw * 0.07, 16);
   const sh = (id, name, kind, path, test, bb, sp, lw) => {
+    const x0 = bb.x0 - g, x1 = bb.x1 + g, y0 = bb.y0 - g, y1 = bb.y1 + g;
     const pts = [];
-    for (let x = bb.x0; x <= bb.x1; x += sp) for (let y = bb.y0; y <= bb.y1; y += sp) if (test(x, y)) pts.push({ x, y });
+    for (let x = x0; x <= x1; x += sp) for (let y = y0; y <= y1; y += sp) if (test(x, y)) pts.push({ x, y });
     out.push({ id, name, kind, path, lw, pts, cov: pts.map(() => false), n: 0, done: false, sp,
       cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2, rx: (bb.x1 - bb.x0) / 2, ry: (bb.y1 - bb.y0) / 2 });
   };
   const sp0 = r => Math.max(5, Math.min(U * 0.02, r * 0.35));
   const ell = (id, name, x, y, rx, ry) => sh(id, name, 'fill',
     () => { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); },
-    (px, py) => ((px - x) / rx) ** 2 + ((py - y) / ry) ** 2 <= 1,
+    (px, py) => ((px - x) / (rx + g)) ** 2 + ((py - y) / (ry + g)) ** 2 <= 1,
     { x0: x - rx, x1: x + rx, y0: y - ry, y1: y + ry }, sp0(Math.min(rx, ry)));
   const rrs = (id, name, x, y, hw, hh, r) => sh(id, name, 'fill',
     () => rr(x - hw, y - hh, hw * 2, hh * 2, r),
-    (px, py) => { const dx = Math.max(Math.abs(px - x) - (hw - r), 0), dy = Math.max(Math.abs(py - y) - (hh - r), 0); return dx * dx + dy * dy <= r * r; },
+    (px, py) => { const dx = Math.max(Math.abs(px - x) - (hw - r), 0), dy = Math.max(Math.abs(py - y) - (hh - r), 0); return dx * dx + dy * dy <= (r + g) ** 2; },
     { x0: x - hw, x1: x + hw, y0: y - hh, y1: y + hh }, sp0(Math.min(hw, hh)));
   const curve = (id, name, pts, th) => sh(id, name, 'stroke',
     () => { ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); },
-    (px, py) => pts.some(q => Math.hypot(px - q.x, py - q.y) <= th),
+    (px, py) => pts.some(q => Math.hypot(px - q.x, py - q.y) <= th + g * 0.5),
     { x0: Math.min(...pts.map(q => q.x)) - th, x1: Math.max(...pts.map(q => q.x)) + th, y0: Math.min(...pts.map(q => q.y)) - th, y1: Math.max(...pts.map(q => q.y)) + th },
     sp0(th), th * 2);
   if (S.fig === 'body'){
@@ -1064,14 +1085,13 @@ function buildShapesN(){
     F.arm.vis.forEach(r => rrs('arm', 'うで', r.x, r.y, r.rx, r.ry, r.rx * (bk ? 0.2 : 1)));
     F.leg.vis.forEach(r => rrs('leg', 'あし', r.x, r.y, r.rx, r.ry, r.rx * (bk ? 0.12 : 0.45)));
   } else {
-    const cx = F.cx, cy = F.cy, a = F.fw / 2, b = F.fh / 2;
-    const bkf = S.style === 'block';
+    const cx = F.cx, cy = F.cy, a = F.fw / 2, b = F.fh / 2, bkf = S.style === 'block';
     sh('face', 'かお', 'ring',
       () => { if (bkf) rr(cx - a, cy - b, a * 2, b * 2, a * 0.06); else { ctx.beginPath(); ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2); } },
-      (px, py) => Math.abs((bkf ? Math.max(Math.abs(px - cx) / a, Math.abs(py - cy) / b) : Math.hypot((px - cx) / a, (py - cy) / b)) - 1) <= 0.075,
-      { x0: cx - a * 1.08, x1: cx + a * 1.08, y0: cy - b * 1.08, y1: cy + b * 1.08 }, Math.min(U * 0.02, F.fw * 0.03), F.fw * 0.075);
-    F.ear.vis.forEach(r => S.style === 'block' ? rrs('ear', 'みみ', r.x, r.y, r.rx, r.ry, r.rx * 0.15) : ell('ear', 'みみ', r.x, r.y, r.rx, r.ry));
-    F.eye.vis.forEach(r => S.style === 'block' ? rrs('eye', 'め', r.x, r.y, r.ry * 1.1, r.ry * 1.1, r.ry * 0.12) : ell('eye', 'め', r.x, r.y, r.ry * 1.15, r.ry * 1.15));
+      (px, py) => { const d = bkf ? Math.max(Math.abs(px - cx) / a, Math.abs(py - cy) / b) : Math.hypot((px - cx) / a, (py - cy) / b); return d >= 0.88 && d <= 1.2; },
+      { x0: cx - a * 1.2, x1: cx + a * 1.2, y0: cy - b * 1.2, y1: cy + b * 1.2 }, Math.min(U * 0.02, F.fw * 0.03), F.fw * 0.3);
+    F.ear.vis.forEach(r => bkf ? rrs('ear', 'みみ', r.x, r.y, r.rx, r.ry, r.rx * 0.15) : ell('ear', 'みみ', r.x, r.y, r.rx, r.ry));
+    F.eye.vis.forEach(r => bkf ? rrs('eye', 'め', r.x, r.y, r.ry * 1.1, r.ry * 1.1, r.ry * 0.12) : ell('eye', 'め', r.x, r.y, r.ry * 1.15, r.ry * 1.15));
     F.brow.vis.forEach(r => curve('brow', 'まゆ', qPts(r.x - r.rx, r.y + r.ry * 0.5, r.x, r.y - r.ry * 1.5, r.x + r.rx, r.y + r.ry * 0.5, 16), Math.max(r.ry * 1.1, 8)));
     const nz = F.nose.vis[0]; curve('nose', 'はな', qPts(nz.x - nz.rx * 0.5, nz.y, nz.x, nz.y + nz.ry * 0.9, nz.x + nz.rx * 0.5, nz.y, 10), Math.max(nz.ry * 0.9, 8));
     const m = F.mouth.vis[0]; curve('mouth', 'くち', qPts(m.x - m.rx, m.y - m.ry * 0.3, m.x, m.y + m.ry * 1.6, m.x + m.rx, m.y - m.ry * 0.3, 16), Math.max(m.ry * 1.0, 8));
@@ -1102,8 +1122,10 @@ function markN(pt, pid){
     const q = prev ? { x: prev.x + (pt.x - prev.x) * (k + 1) / steps, y: prev.y + (pt.y - prev.y) * (k + 1) / steps } : pt;
     trc.forEach(sh => {
       if (sh.done) return;
-      sh.pts.forEach((p, i) => { if (!sh.cov[i] && Math.hypot(p.x - q.x, p.y - q.y) <= rad){ sh.cov[i] = true; sh.n++; } });
-      if (sh.n >= sh.pts.length * 0.8){
+      sh.pts.forEach((p, i) => {
+        if (!sh.cov[i] && Math.hypot(p.x - q.x, p.y - q.y) <= rad){ sh.cov[i] = true; sh.n++; if (Math.random() < 0.35) spark(p.x, p.y); }
+      });
+      if (sh.n >= sh.pts.length * 0.7){
         sh.done = true; bIdle = 0;
         say(sh.name + 'だね');
         addStars(sh.cx, sh.cy, Math.max(sh.rx, sh.ry) * 0.5, Math.max(1, Math.round(LOOK[S.look].stars / 2)));
@@ -1119,24 +1141,22 @@ function drawN(){
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     sh.path();
     if (sh.kind === 'fill'){
-      ctx.fillStyle = sh.done ? 'rgba(242,193,78,.65)' : 'rgba(90,64,40,.12)'; ctx.fill();
+      ctx.fillStyle = sh.done ? TQ(0.45) : 'rgba(90,64,40,.1)'; ctx.fill();
       ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.4)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
     } else {
-      ctx.strokeStyle = sh.done ? 'rgba(242,193,78,.65)' : 'rgba(90,64,40,.14)'; ctx.lineWidth = sh.lw; ctx.stroke();
+      ctx.strokeStyle = sh.done ? TQ(0.45) : 'rgba(90,64,40,.12)'; ctx.lineWidth = sh.lw; ctx.stroke();
     }
     ctx.restore();
-    if (!sh.done){   // 塗れたところ（金色）
-      ctx.save();
-      if (sh.kind === 'fill'){ sh.path(); ctx.clip(); }
-      ctx.fillStyle = 'rgba(242,193,78,.85)'; const z = sh.sp * 1.6;
-      sh.pts.forEach((p, i) => { if (sh.cov[i]) ctx.fillRect(p.x - z / 2, p.y - z / 2, z, z); });
-      ctx.restore();
-    }
+    // 塗れたところ（ターコイズ）。線の外へも、そのまま塗れる（クリップしない）
+    ctx.save(); ctx.fillStyle = TQ(0.85); const z = sh.sp * 1.6;
+    sh.pts.forEach((p, i) => { if (sh.cov[i]) ctx.fillRect(p.x - z / 2, p.y - z / 2, z, z); });
+    ctx.restore();
   });
   if (!nDone && bIdle > a.idle){
     const sh = trc.find(q => !q.done);
-    if (sh) glowAt([{ x: sh.cx, y: sh.cy, rx: sh.rx, ry: sh.ry }], '#f2c14e', 0.4 + 0.25 * Math.sin(T * 2.2));
+    if (sh) glowAt([{ x: sh.cx, y: sh.cy, rx: sh.rx, ry: sh.ry }], '#30d5c8', 0.4 + 0.25 * Math.sin(T * 2.2));
   }
+  drawSparks();
 }
 
 // ---- 指の入力 ----
