@@ -124,7 +124,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
       <li>名前を聞いて、その部分を見ているか、指さすか。</li>
       <li>似た部分（め・はな・くち、まゆ）を間違えるか。間違えたとき、自分で直すか。</li>
       <li>見本に重ねるときは、見本を見てから置くか。違う場所に置いたとき、自分で置き直すか。</li>
-      <li>なぞるときは、線を追えるか。さわって聞くときは、名前を聞いて、その部分と結びつくか。</li>
+      <li>塗るときは、形の中を、指でこすって塗れるか。さわって聞くときは、名前を聞いて、その部分と結びつくか。</li>
       <li>気づいたことは、紙のメモに書いてください。このアプリは名前も記録も保存しません。</li>
     </ul>
     <h2>手助け</h2>
@@ -180,7 +180,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
           <button class="opt" data-set="stage" data-v="N">なぞる</button>
           <button class="opt" data-set="stage" data-v="T">さわって聞く</button>
         </div>
-        <p class="note">指さし：名前を聞いて、その部分をさします。重ねる：部分を、見本の場所に持っていって置きます。違う場所では、元の場所へ戻ります。なぞる：外の線を指でなぞります。さわって聞く：部分をさわると、その名前を答えます。</p>
+        <p class="note">指さし：名前を聞いて、その部分をさします。重ねる：部分を、見本の場所に持っていって置きます。違う場所では、元の場所へ戻ります。なぞる：形の中を指でこすって、金色に塗ります。さわって聞く：部分をさわると、その名前を答えます。</p>
       </div>
       <div class="row">
         <h3>ことば（顔のとき）</h3>
@@ -970,25 +970,44 @@ function rrPts(x, y, w, h, r){
   return p;
 }
 function buildShapesN(){
+  // 塗る形。「fill」＝中を塗る、「stroke」＝細い線の形を、太い帯で塗る、「ring」＝輪郭を、太い帯で塗る
   const out = [];
-  const add = (id, name, pts) => {
-    const xs = pts.map(q => q.x), ys = pts.map(q => q.y);
-    out.push({ id, name, pts, cov: pts.map(() => false), n: 0, done: false,
-      cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2,
-      rx: (Math.max(...xs) - Math.min(...xs)) / 2, ry: (Math.max(...ys) - Math.min(...ys)) / 2 });
+  const sh = (id, name, kind, path, test, bb, sp, lw) => {
+    const pts = [];
+    for (let x = bb.x0; x <= bb.x1; x += sp) for (let y = bb.y0; y <= bb.y1; y += sp) if (test(x, y)) pts.push({ x, y });
+    out.push({ id, name, kind, path, lw, pts, cov: pts.map(() => false), n: 0, done: false, sp,
+      cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2, rx: (bb.x1 - bb.x0) / 2, ry: (bb.y1 - bb.y0) / 2 });
   };
+  const sp0 = r => Math.max(5, Math.min(U * 0.02, r * 0.35));
+  const ell = (id, name, x, y, rx, ry) => sh(id, name, 'fill',
+    () => { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); },
+    (px, py) => ((px - x) / rx) ** 2 + ((py - y) / ry) ** 2 <= 1,
+    { x0: x - rx, x1: x + rx, y0: y - ry, y1: y + ry }, sp0(Math.min(rx, ry)));
+  const rrs = (id, name, x, y, hw, hh, r) => sh(id, name, 'fill',
+    () => rr(x - hw, y - hh, hw * 2, hh * 2, r),
+    (px, py) => { const dx = Math.max(Math.abs(px - x) - (hw - r), 0), dy = Math.max(Math.abs(py - y) - (hh - r), 0); return dx * dx + dy * dy <= r * r; },
+    { x0: x - hw, x1: x + hw, y0: y - hh, y1: y + hh }, sp0(Math.min(hw, hh)));
+  const curve = (id, name, pts, th) => sh(id, name, 'stroke',
+    () => { ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); },
+    (px, py) => pts.some(q => Math.hypot(px - q.x, py - q.y) <= th),
+    { x0: Math.min(...pts.map(q => q.x)) - th, x1: Math.max(...pts.map(q => q.x)) + th, y0: Math.min(...pts.map(q => q.y)) - th, y1: Math.max(...pts.map(q => q.y)) + th },
+    sp0(th), th * 2);
   if (S.fig === 'body'){
-    F.head.vis.forEach(r => add('head', 'あたま', circPts(r.x, r.y, r.rx * 1.04, r.rx * 1.04, 32)));
-    F.torso.vis.forEach(r => add('torso', 'おなか', rrPts(r.x - r.rx, r.y - r.ry, r.rx * 2, r.ry * 2, r.rx * 0.55)));
-    F.arm.vis.forEach(r => add('arm', 'うで', rrPts(r.x - r.rx, r.y - r.ry, r.rx * 2, r.ry * 2, r.rx)));
-    F.leg.vis.forEach(r => add('leg', 'あし', rrPts(r.x - r.rx, r.y - r.ry, r.rx * 2, r.ry * 2, r.rx * 0.45)));
+    F.head.vis.forEach(r => ell('head', 'あたま', r.x, r.y, r.rx * 1.04, r.rx * 1.04));
+    F.torso.vis.forEach(r => rrs('torso', 'おなか', r.x, r.y, r.rx, r.ry, r.rx * 0.55));
+    F.arm.vis.forEach(r => rrs('arm', 'うで', r.x, r.y, r.rx, r.ry, r.rx));
+    F.leg.vis.forEach(r => rrs('leg', 'あし', r.x, r.y, r.rx, r.ry, r.rx * 0.45));
   } else {
-    add('face', 'かお', circPts(F.cx, F.cy, F.fw / 2, F.fh / 2, 64));
-    F.ear.vis.forEach(r => add('ear', 'みみ', circPts(r.x, r.y, r.rx, r.ry, 24)));
-    F.eye.vis.forEach(r => add('eye', 'め', circPts(r.x, r.y, r.ry * 0.95, r.ry * 0.95, 20)));
-    F.brow.vis.forEach(r => add('brow', 'まゆ', qPts(r.x - r.rx, r.y + r.ry * 0.5, r.x, r.y - r.ry * 1.5, r.x + r.rx, r.y + r.ry * 0.5, 16)));
-    const nz = F.nose.vis[0]; add('nose', 'はな', qPts(nz.x - nz.rx * 0.5, nz.y, nz.x, nz.y + nz.ry * 0.9, nz.x + nz.rx * 0.5, nz.y, 10));
-    const m = F.mouth.vis[0]; add('mouth', 'くち', qPts(m.x - m.rx, m.y - m.ry * 0.3, m.x, m.y + m.ry * 1.6, m.x + m.rx, m.y - m.ry * 0.3, 16));
+    const cx = F.cx, cy = F.cy, a = F.fw / 2, b = F.fh / 2;
+    sh('face', 'かお', 'ring',
+      () => { ctx.beginPath(); ctx.ellipse(cx, cy, a, b, 0, 0, Math.PI * 2); },
+      (px, py) => Math.abs(Math.hypot((px - cx) / a, (py - cy) / b) - 1) <= 0.075,
+      { x0: cx - a * 1.08, x1: cx + a * 1.08, y0: cy - b * 1.08, y1: cy + b * 1.08 }, Math.min(U * 0.02, F.fw * 0.03), F.fw * 0.075);
+    F.ear.vis.forEach(r => ell('ear', 'みみ', r.x, r.y, r.rx, r.ry));
+    F.eye.vis.forEach(r => ell('eye', 'め', r.x, r.y, r.ry * 1.15, r.ry * 1.15));
+    F.brow.vis.forEach(r => curve('brow', 'まゆ', qPts(r.x - r.rx, r.y + r.ry * 0.5, r.x, r.y - r.ry * 1.5, r.x + r.rx, r.y + r.ry * 0.5, 16), Math.max(r.ry * 1.1, 8)));
+    const nz = F.nose.vis[0]; curve('nose', 'はな', qPts(nz.x - nz.rx * 0.5, nz.y, nz.x, nz.y + nz.ry * 0.9, nz.x + nz.rx * 0.5, nz.y, 10), Math.max(nz.ry * 0.9, 8));
+    const m = F.mouth.vis[0]; curve('mouth', 'くち', qPts(m.x - m.rx, m.y - m.ry * 0.3, m.x, m.y + m.ry * 1.6, m.x + m.rx, m.y - m.ry * 0.3, 16), Math.max(m.ry * 1.0, 8));
   }
   return out;
 }
@@ -1009,7 +1028,7 @@ function updateN(dt){
 }
 function markN(pt, pid){
   if (nDone) return;
-  const rad = Math.max(F.fw * 0.075, 16) * asst().m;
+  const rad = Math.max(F.fw * 0.05, 14) * asst().m;   // 塗る筆の太さ（手助けで変わる）
   const prev = trcLast[pid]; trcLast[pid] = pt;
   const steps = prev ? 4 : 1;
   for (let k = 0; k < steps; k++){
@@ -1017,7 +1036,7 @@ function markN(pt, pid){
     trc.forEach(sh => {
       if (sh.done) return;
       sh.pts.forEach((p, i) => { if (!sh.cov[i] && Math.hypot(p.x - q.x, p.y - q.y) <= rad){ sh.cov[i] = true; sh.n++; } });
-      if (sh.n >= sh.pts.length * 0.75){
+      if (sh.n >= sh.pts.length * 0.8){
         sh.done = true; bIdle = 0;
         say(sh.name + 'だね');
         addStars(sh.cx, sh.cy, Math.max(sh.rx, sh.ry) * 0.5, Math.max(1, Math.round(LOOK[S.look].stars / 2)));
@@ -1030,10 +1049,22 @@ function markN(pt, pid){
 function drawN(){
   const a = asst();
   trc.forEach(sh => {
-    sh.pts.forEach((p, i) => {
-      ctx.beginPath(); ctx.arc(p.x, p.y, sh.cov[i] ? U * 0.009 : U * 0.0045, 0, Math.PI * 2);
-      ctx.fillStyle = sh.cov[i] ? '#f2c14e' : 'rgba(90,64,40,.4)'; ctx.fill();
-    });
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    sh.path();
+    if (sh.kind === 'fill'){
+      ctx.fillStyle = sh.done ? 'rgba(242,193,78,.65)' : 'rgba(90,64,40,.12)'; ctx.fill();
+      ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.4)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = sh.done ? 'rgba(242,193,78,.65)' : 'rgba(90,64,40,.14)'; ctx.lineWidth = sh.lw; ctx.stroke();
+    }
+    ctx.restore();
+    if (!sh.done){   // 塗れたところ（金色）
+      ctx.save();
+      if (sh.kind === 'fill'){ sh.path(); ctx.clip(); }
+      ctx.fillStyle = 'rgba(242,193,78,.85)'; const z = sh.sp * 1.6;
+      sh.pts.forEach((p, i) => { if (sh.cov[i]) ctx.fillRect(p.x - z / 2, p.y - z / 2, z, z); });
+      ctx.restore();
+    }
   });
   if (!nDone && bIdle > a.idle){
     const sh = trc.find(q => !q.done);
