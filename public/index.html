@@ -452,7 +452,7 @@ function drawWash(){
 // ---- 顔の指さし（段階A：言葉を聞いて、その部分をさす）----
 const PENTA = [523, 587, 659, 784, 880, 988, 1175, 1319];
 const SKIN = ['#f6d3b3', '#e3b08a', '#b97f57'];
-const HAIR = ['#3a2d28', '#7a4a2a', '#c58b45'];
+const HAIR = ['#5b3f2e', '#7a4a2a', '#c58b45'];
 const PARTS = { eye: { name: 'め' }, nose: { name: 'はな' }, mouth: { name: 'くち' } };
 const PART_IDS = ['eye', 'nose', 'mouth'];
 // 手助け：m＝触れられる範囲の倍率、idle＝ヒントが出るまでの秒、base＝聞かれた部分を最初からうっすら光らせる
@@ -655,6 +655,9 @@ function drawFace(){
   };
   // 1 うしろの髪
   hairBackPath(); ctx.fillStyle = hairBack; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+  // 1.5 首（あごの下だけ。服は身体の段階で描く）
+  ctx.beginPath(); ctx.moveTo(X(-0.14), Y(0.4)); ctx.lineTo(X(-0.14), Y(0.56)); ctx.quadraticCurveTo(X(0), Y(0.64), X(0.14), Y(0.56)); ctx.lineTo(X(0.14), Y(0.4)); ctx.closePath();
+  ctx.fillStyle = skin; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(-0.14), Y(0.4)); ctx.lineTo(X(-0.14), Y(0.56)); ctx.moveTo(X(0.14), Y(0.4)); ctx.lineTo(X(0.14), Y(0.56)); ctx.stroke();
   // 2 耳（髪の外に少し出る）
   [-1, 1].forEach(s => {
     ctx.beginPath(); ctx.ellipse(X(s * 0.5), Y(0.05), fw * 0.085, fh * 0.12, 0, 0, Math.PI * 2);
