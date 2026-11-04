@@ -1141,14 +1141,14 @@ function drawN(){
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     sh.path();
     if (sh.kind === 'fill'){
-      ctx.fillStyle = sh.done ? TQ(0.45) : 'rgba(90,64,40,.1)'; ctx.fill();
+      ctx.fillStyle = sh.done ? TQ(0.2) : 'rgba(90,64,40,.08)'; ctx.fill();
       ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.4)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
     } else {
-      ctx.strokeStyle = sh.done ? TQ(0.45) : 'rgba(90,64,40,.12)'; ctx.lineWidth = sh.lw; ctx.stroke();
+      ctx.strokeStyle = sh.done ? TQ(0.2) : 'rgba(90,64,40,.1)'; ctx.lineWidth = sh.lw; ctx.stroke();
     }
     ctx.restore();
     // 塗れたところ（ターコイズ）。線の外へも、そのまま塗れる（クリップしない）
-    ctx.save(); ctx.fillStyle = TQ(0.85); const z = sh.sp * 1.6;
+    ctx.save(); ctx.fillStyle = TQ(0.3); const z = sh.sp * 1.6;
     sh.pts.forEach((p, i) => { if (sh.cov[i]) ctx.fillRect(p.x - z / 2, p.y - z / 2, z, z); });
     ctx.restore();
   });
