@@ -1140,17 +1140,7 @@ function markN(pt, pid){
 }
 function drawN(){
   const a = asst();
-  trc.forEach(sh => {
-    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    sh.path();
-    if (sh.kind === 'fill'){
-      ctx.fillStyle = sh.done ? TQ(0.2) : 'rgba(90,64,40,.08)'; ctx.fill();
-      ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.4)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
-    } else {
-      ctx.strokeStyle = sh.done ? TQ(0.2) : 'rgba(90,64,40,.1)'; ctx.lineWidth = sh.lw; ctx.stroke();
-    }
-    ctx.restore();
-  });
+  // 形の輪郭や、まだ塗れていない部分は、見せない（塗った所だけが見える）
   // 塗った所（指が通った所）。形の範囲では切らず、どこでも塗れて見える（うすい・透過）
   ctx.save(); ctx.fillStyle = TQ(0.12);
   paint.forEach(q => { ctx.beginPath(); ctx.arc(q.x, q.y, paintR, 0, Math.PI * 2); ctx.fill(); });
