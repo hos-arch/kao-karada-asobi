@@ -1030,6 +1030,7 @@ function tapNameT(pt){
 
 // ---- なぞる（段階N）：外の線を指でなぞる。すべての線をなぞれたら、お祝い ----
 let trc = [], trcLast = {}, nDone = false;
+let paint = [], paintR = 20;   // 塗った所は、指が通った場所にそのまま残る（形の範囲で切らない）
 function circPts(x, y, rx, ry, n){ const p = []; for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; p.push({ x: x + Math.cos(a) * rx, y: y + Math.sin(a) * ry }); } return p; }
 function qPts(x0, y0, cx1, cy1, x1, y1, n){ const p = []; for (let i = 0; i <= n; i++){ const t = i / n, u = 1 - t; p.push({ x: u * u * x0 + 2 * u * t * cx1 + t * t * x1, y: u * u * y0 + 2 * u * t * cy1 + t * t * y1 }); } return p; }
 function rrPts(x, y, w, h, r){
@@ -1100,7 +1101,7 @@ function buildShapesN(){
 }
 function newRoundN(){
   phase = 'ask'; fadeA = 1; flashes.length = 0; bIdle = 0; bPhT = 0; bCheered = false; nDone = false;
-  trc = buildShapesN(); trcLast = {};
+  trc = buildShapesN(); trcLast = {}; paint = [];
 }
 function updateN(dt){
   if (!nDone){
@@ -1116,10 +1117,12 @@ function updateN(dt){
 function markN(pt, pid){
   if (nDone) return;
   const rad = Math.max(F.fw * 0.05, 14) * asst().m;   // 塗る筆の太さ（手助けで変わる）
+  paintR = rad * 0.8;
   const prev = trcLast[pid]; trcLast[pid] = pt;
   const steps = prev ? 4 : 1;
   for (let k = 0; k < steps; k++){
     const q = prev ? { x: prev.x + (pt.x - prev.x) * (k + 1) / steps, y: prev.y + (pt.y - prev.y) * (k + 1) / steps } : pt;
+    paint.push({ x: q.x, y: q.y }); if (paint.length > 700) paint.shift();
     trc.forEach(sh => {
       if (sh.done) return;
       sh.pts.forEach((p, i) => {
@@ -1147,11 +1150,11 @@ function drawN(){
       ctx.strokeStyle = sh.done ? TQ(0.2) : 'rgba(90,64,40,.1)'; ctx.lineWidth = sh.lw; ctx.stroke();
     }
     ctx.restore();
-    // 塗れたところ（ターコイズ）。線の外へも、そのまま塗れる（クリップしない）
-    ctx.save(); ctx.fillStyle = TQ(0.3); const z = sh.sp * 1.6;
-    sh.pts.forEach((p, i) => { if (sh.cov[i]) ctx.fillRect(p.x - z / 2, p.y - z / 2, z, z); });
-    ctx.restore();
   });
+  // 塗った所（指が通った所）。形の範囲では切らず、どこでも塗れて見える（うすい・透過）
+  ctx.save(); ctx.fillStyle = TQ(0.12);
+  paint.forEach(q => { ctx.beginPath(); ctx.arc(q.x, q.y, paintR, 0, Math.PI * 2); ctx.fill(); });
+  ctx.restore();
   if (!nDone && bIdle > a.idle){
     const sh = trc.find(q => !q.done);
     if (sh) glowAt([{ x: sh.cx, y: sh.cy, rx: sh.rx, ry: sh.ry }], '#30d5c8', 0.4 + 0.25 * Math.sin(T * 2.2));
