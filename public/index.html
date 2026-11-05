@@ -124,6 +124,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
       <li>名前を聞いて、その部分を見ているか、指さすか。</li>
       <li>似た部分（め・はな・くち、まゆ）を間違えるか。間違えたとき、自分で直すか。</li>
       <li>見本に重ねるときは、見本を見てから置くか。違う場所に置いたとき、自分で置き直すか。</li>
+      <li>見本をうすくしたり、なくしたりしたとき、どこまで置けるか。部分どうしの位置（めの下にはな、など）を手がかりにしているか。</li>
       <li>塗るときは、形の中を、指でこすって塗れるか。さわって聞くときは、名前を聞いて、その部分と結びつくか。</li>
       <li>気づいたことは、紙のメモに書いてください。このアプリは名前も記録も保存しません。</li>
     </ul>
@@ -133,7 +134,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
       <li>ふつう：少し待つと、聞かれた部分が光ります。</li>
       <li>小さい：触れられる範囲が小さく、光りません。ヒントは、支援者メニューの「ヒントを今出す」で出します。</li>
     </ul>
-    <p class="note">メニューで、「見る絵」（顔・身体）、「段階」（指さし・見本に重ねる）、「ことば」（顔のみみ・まゆ）を変えられます。見本をうすくする段階は、これから作ります。</p>
+    <p class="note">メニューで、「見る絵」（顔・身体）、「段階」（指さし・重ねる・うすく・見本なし・なぞる・さわって聞く）、「ことば」（顔のみみ・まゆ）を変えられます。「重ねる→うすく→見本なし」の順に、手がかりを少しずつ減らします。</p>
     <p>設定は、右上の点を1秒ほど長押しすると開きます。カメラもマイクも使いません。</p>
     <button id="introBtn" type="button">はじめる</button>
   </div>
@@ -185,10 +186,12 @@ button:focus-visible,input:focus-visible{outline:3px solid #e0b24a;outline-offse
         <div class="opts">
           <button class="opt" data-set="stage" data-v="A">指さし</button>
           <button class="opt" data-set="stage" data-v="B">重ねる</button>
+          <button class="opt" data-set="stage" data-v="D">うすく</button>
+          <button class="opt" data-set="stage" data-v="E">見本なし</button>
           <button class="opt" data-set="stage" data-v="N">なぞる</button>
           <button class="opt" data-set="stage" data-v="T">さわって聞く</button>
         </div>
-        <p class="note">指さし：名前を聞いて、その部分をさします。重ねる：部分を、見本の場所に持っていって置きます。違う場所では、元の場所へ戻ります。なぞる：形の中を指でこすって、金色に塗ります。さわって聞く：部分をさわると、その名前を答えます。</p>
+        <p class="note">指さし：名前を聞いて、その部分をさします。重ねる：部分を、見本の場所に持っていって置きます。違う場所では、元の場所へ戻ります。うすく：見本がうすくなります（重ねるの次）。見本なし：見本を出さず、ことばと部分どうしの位置を手がかりに、自分で置きます（うすくの次）。なぞる：形の中を指でこすって、金色に塗ります。さわって聞く：部分をさわると、その名前を答えます。</p>
       </div>
       <div class="row">
         <h3>ことば（顔のとき）</h3>
@@ -609,7 +612,7 @@ function relayout(){
       brow:  { vis: [E(-0.19, -0.155, 0.07, 0.035), E(0.19, -0.155, 0.07, 0.035)], hit: [E(-0.19, -0.155, 0.10, 0.06), E(0.19, -0.155, 0.10, 0.06)] }
     };
   }
-  if (S.stage === 'B' && pcs.length) trayLayout();
+  if (isPlace() && pcs.length) trayLayout();
 }
 // 触れられる部分（2つのときは、ことばの中から、毎回かわる2つ）
 function pickTouch(){
@@ -711,7 +714,7 @@ let touch = [], order = [], qi = 0, target = null, last = '', phase = 'ask', ask
 const flashes = [];
 const active = () => $('intro').classList.contains('hide') && !$('panel').classList.contains('open');
 function newRound(){
-  if (S.stage === 'B'){ newRoundB(); return; }
+  if (isPlace()){ newRoundB(); return; }
   if (S.stage === 'N'){ newRoundN(); return; }
   phase = 'ask'; fadeA = 1; cheered = false; placeN = 0; flashes.length = 0;
   touch = pickTouch();
@@ -720,10 +723,10 @@ function newRound(){
   qi = 0; startQ();
 }
 function startQ(){ target = order[qi]; last = target; askT = 0; spoken = false; idleT = 0; hintT = 0; phase = 'ask'; stopSpeech(); }
-function skipQ(){ if (S.stage === 'B'){ newRoundB(); return; } if (S.stage === 'N'){ newRoundN(); return; } if (S.stage === 'T') return; if (phase !== 'ask') return; qi++; if (qi >= order.length) newRound(); else startQ(); }
+function skipQ(){ if (isPlace()){ newRoundB(); return; } if (S.stage === 'N'){ newRoundN(); return; } if (S.stage === 'T') return; if (phase !== 'ask') return; qi++; if (qi >= order.length) newRound(); else startQ(); }
 function again(){
   if (S.stage === 'T' || S.stage === 'N') return;
-  if (S.stage === 'B'){ const p = pcs.find(q => !q.placed); if (p){ spoken = true; say(promptOf(p.id)); } return; }
+  if (isPlace()){ const p = pcs.find(q => !q.placed); if (p){ spoken = true; say(promptOf(p.id)); } return; }
   if (phase === 'ask'){ spoken = true; say(promptOf(target)); }
 }
 
@@ -738,7 +741,7 @@ function partAt(pt){   // いちばん近い部分（顔のぜんぶの部分か
   return best;
 }
 function onTap(pt){
-  if (S.stage === 'B' || S.stage === 'N') return;
+  if (isPlace() || S.stage === 'N') return;
   if (S.stage === 'T'){ tapNameT(pt); return; }
   if (frozen || phase !== 'ask' || !active()) return;
   const id = partAt(pt); if (!id || !touch.includes(id)) return;   // 輪のない部分・部分でない所は、反応しない
@@ -755,7 +758,7 @@ function update(dt){
   updSparks(dt);
   for (let i = flashes.length - 1; i >= 0; i--){ flashes[i].t += dt; if (flashes[i].t > (flashes[i].ok ? 1.5 : 0.7)) flashes.splice(i, 1); }
   if (!active()) return;
-  if (S.stage === 'B'){ updateB(dt); return; }
+  if (isPlace()){ updateB(dt); return; }
   if (S.stage === 'N'){ updateN(dt); return; }
   if (S.stage === 'T') return;
   if (phase === 'ask'){
@@ -911,19 +914,23 @@ function drawBodyFull(alpha, skip){
 function drawBody(){
   if (S.stage === 'A' || S.stage === 'T') drawBodyFull(1);
   else if (S.stage === 'N') drawBodyFull(0.5);
-  else if (S.stage === 'B') drawBodyFull(1, partGuide);   // 指示以外の部位は、いつも見える
+  else if (isPlace()) drawBodyFull(1, partGuide);   // 指示以外の部位は、いつも見える
   drawGlows(); drawRings();
 }
-function drawScene(){ ctx.save(); ctx.globalAlpha = fadeA; if (S.fig === 'body') drawBody(); else drawFace(); if (S.stage === 'B') drawB(); if (S.stage === 'N') drawN(); ctx.restore(); }
+function drawScene(){ ctx.save(); ctx.globalAlpha = fadeA; if (S.fig === 'body') drawBody(); else drawFace(); if (isPlace()) drawB(); if (S.stage === 'N') drawN(); ctx.restore(); }
 
 // =====================================================================
 // ---- 段階B・C（見本に重ねる：顔・身体）：部分を、見本の場所に自分で置く ----
+// 段階D（見本をうすくする）・段階E（見本なし）も、同じ仕組み。違いは、見本の見え方だけ。
+//   B＝見本がはっきり／D＝見本がうすい（約35%）／E＝見本なし（ことばと、部分どうしの位置を手がかりに置く）
+const isPlace = () => S.stage === 'B' || S.stage === 'D' || S.stage === 'E';
+const guideK = () => S.stage === 'D' ? 0.35 : S.stage === 'E' ? 0 : 1;
 let pcs = [], targets = [], drag = null, bPlaceN = 0, bIdle = 0, bPhT = 0, bCheered = false, bDone = false, trayS = 1;
 const ZORD = { leg: 0, torso: 1, arm: 2, head: 3, ear: 0, eye: 1, nose: 1, mouth: 1, brow: 1 };
 const tpos = t => F[t.id].vis[t.k];                // 見本の場所（画面が変わっても、いつもいまの位置）
 const pdim = p => F[p.id].vis[0];                  // 部分の大きさ（左右の部分は、同じ形）
 const targetFilled = (id, k) => targets.some(t => t.id === id && t.k === k && t.filled);
-const partGuide = (id, k) => S.stage === 'B' && targets.some(t => t.id === id && t.k === k && !t.filled);   // 見本（まだ置いていない所）
+const partGuide = (id, k) => isPlace() && targets.some(t => t.id === id && t.k === k && !t.filled);   // 見本（まだ置いていない所）
 function trayLayout(){   // 置き場：下の一列。入りきらないときは、小さくして並べる（持つと、もとの大きさになる）
   const n = pcs.length; if (!n) return;
   const body = S.fig === 'body', gap = Math.max(8, W * 0.02), rowW = W * 0.92;
@@ -994,19 +1001,19 @@ function guideShape(id, r){   // 見本（うすい点線）。顔は輪、身�
   if (S.fig === 'body'){
     if (id === 'head'){ ctx.beginPath(); ctx.arc(r.x, r.y, r.rx * 1.04, 0, Math.PI * 2); }
     else rr(r.x - r.rx * 1.04, r.y - r.ry * 1.03, r.rx * 2.08, r.ry * 2.06, Math.min(r.rx, r.ry) * 0.7);
-    ctx.fillStyle = 'rgba(90,64,40,.06)'; ctx.fill();
+    ctx.fillStyle = 'rgba(90,64,40,' + (.06 * guideK()).toFixed(3) + ')'; ctx.fill();
   } else if (S.style === 'block'){ rr(r.x - r.rx * 1.15, r.y - r.ry * 1.15, r.rx * 2.3, r.ry * 2.3, Math.min(r.rx, r.ry) * 0.2); }
   else { ctx.beginPath(); ctx.ellipse(r.x, r.y, r.rx * 1.15, r.ry * 1.15, 0, 0, Math.PI * 2); }
-  ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,.35)'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
+  ctx.setLineDash([U * 0.01, U * 0.008]); ctx.strokeStyle = 'rgba(90,64,40,' + (.35 * guideK()).toFixed(3) + ')'; ctx.lineWidth = Math.max(1.5, U * 0.004); ctx.stroke(); ctx.setLineDash([]);
   ctx.restore();
 }
 function drawB(){
   const a = asst();
-  targets.forEach(t => guideShape(t.id, tpos(t)));
+  if (guideK() > 0) targets.forEach(t => guideShape(t.id, tpos(t)));   // E：見本は出さない
   // ヒント（次に置く場所を、やわらかく光らせる）
   const next = targets.find(t => !t.filled);
   if (next && S.hint === 'on' && !drag){
-    let al = a.base ? 0.2 + 0.05 * Math.sin(T * 1.6) : 0;
+    let al = (a.base && S.stage !== 'E') ? 0.2 + 0.05 * Math.sin(T * 1.6) : 0;
     if (bIdle > a.idle) al = Math.max(al, 0.4 + 0.25 * Math.sin(T * 2.2));
     if (al > 0) glowAt([tpos(next)], '#f2c14e', al);
   }
@@ -1161,7 +1168,7 @@ cv.addEventListener('pointerdown', e => {
   if (ptrs.size >= maxPtrs()) return;
   ptrs.set(e.pointerId, 1);
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
-  if (S.stage === 'B'){ grabB(pos(e), e.pointerId); return; }
+  if (isPlace()){ grabB(pos(e), e.pointerId); return; }
   if (S.stage === 'N'){ markN(pos(e), e.pointerId); return; }
   onTap(pos(e));
 });
